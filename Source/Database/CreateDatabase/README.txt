@@ -7,6 +7,142 @@ GO
 -----------------------------------------------------------------------------------------------------
 -- PHẦN 1: TẠO TẤT CẢ CÁC BẢNG 
 -----------------------------------------------------------------------------------------------------
+--1. Bảng USER
+CREATE TABLE [USER] (
+    MaUser		nchar(10) NOT NULL PRIMARY KEY,
+    HoTen		nvarchar(50) NOT NULL,
+    NgaySinh	date CHECK (NgaySinh < GETDATE()),
+    GioiTinh	nvarchar(3) NOT NULL CHECK (GioiTinh IN ('Nam', 'Nữ')),
+    LoaiUser	nchar(2) NOT NULL CHECK (LoaiUser IN ('KH', 'NV'))    
+);
+
+--2. Bảng NHAN_VIEN
+CREATE TABLE NHAN_VIEN (
+    MaNV		nchar(10) NOT NULL PRIMARY KEY,
+    NgayVaoLam	date NOT NULL,
+    LuongCoBan	decimal(12,2) NOT NULL CHECK (LuongCoBan > 0),
+    Chucvu		nvarchar(50) NOT NULL,
+    MaCN		nchar(10) NOT NULL
+);
+
+--3. Bảng CHI_NHANH
+CREATE TABLE CHI_NHANH (
+    MaCN       nchar(10) NOT NULL PRIMARY KEY,
+    TenCN      nvarchar(50) NOT NULL UNIQUE,
+    DiaChi     nvarchar(100) NOT NULL UNIQUE,
+    SDT        varchar(10) NOT NULL UNIQUE,
+    Giomocua   time NOT NULL,
+    Giodongcua time NOT NULL,
+    MaNVQL     nchar(10) NOT NULL
+);
+
+--4. Bảng LOAI_DICH_VU
+CREATE TABLE LOAI_DICH_VU (
+    MaLoaiDV   nchar(5) NOT NULL PRIMARY KEY,
+    TenLoaiDV  nvarchar(30) NOT NULL UNIQUE,
+    GiaCoBan   decimal(12,2) NOT NULL CHECK (GiaCoBan > 0)
+);
+
+--5. Bảng DV_CN
+CREATE TABLE DV_CN (
+    MaCN      nchar(10) NOT NULL,
+    MaLoaiDV  nchar(5) NOT NULL,
+	CONSTRAINT PK_DV_CN PRIMARY KEY (MaCN, MaLoaiDV)
+);
+
+--6. Bảng PHAN_CONG_CN
+CREATE TABLE PHAN_CONG_CN (
+    MaCN     nchar(10) NOT NULL,
+    MaNV     nchar(10) NOT NULL,
+    NgayBD   date NOT NULL,
+    NgayKT   date NOT NULL ,
+    Ghichu   nvarchar(100),
+	CONSTRAINT PK_PHAN_CONG_CN PRIMARY KEY (MaCN, MaNV, NgayBD),
+	CONSTRAINT CHK_NgayKT_NgayBD CHECK (NgayKT > NgayBD)
+);
+
+--7. Bảng PHIEU_DV
+CREATE TABLE PHIEU_DICH_VU (
+    MaPhieu        nchar(10) NOT NULL PRIMARY KEY,
+    TG_ThucHienDV  datetime NOT NULL,
+    TG_LapPhieu    datetime NOT NULL,
+    TrangThai      varchar(3) NOT NULL CHECK (TrangThai IN ('DD', 'DTH', 'DHT', 'DH')),
+    LoaiPhieu      varchar(2) NOT NULL CHECK (LoaiPhieu IN ('KB', 'MH', 'TV')),
+    MaCN           nchar(10) NOT NULL,
+    MaNV           nchar(10) NOT NULL,
+    MaKH           nchar(10)
+);
+
+--8. Bảng KHACH_HANG
+CREATE TABLE KHACH_HANG (
+    MaKH             nchar(10) NOT NULL PRIMARY KEY,
+    SDT              varchar(10) NOT NULL UNIQUE,
+    Email            varchar(50) NOT NULL UNIQUE CHECK (Email LIKE '%_@_%._%'),
+    CCCD             char(12) NOT NULL UNIQUE,
+    TongDiemTichLuy  int NOT NULL
+);
+
+--9. Bảng THU_CUNG
+CREATE TABLE THU_CUNG (
+    MaTC             nchar(10) NOT NULL PRIMARY KEY,
+    Ten              nvarchar(50),
+    Loai             nvarchar(30) NOT NULL,
+    Giong            nvarchar(30) NOT NULL,
+    NgSinh           date NOT NULL CHECK (NgSinh < GETDATE()),
+    GioiTinh         nvarchar(3) NOT NULL,
+    TinhTrangSucKhoe nvarchar(100) NOT NULL,
+    MaKH             nchar(10) NOT NULL
+);
+
+--10. Bảng TAI_KHOAN
+CREATE TABLE TAI_KHOAN (
+    TenDangNhap  varchar(30) NOT NULL PRIMARY KEY,
+    MatKhau      varchar(50) NOT NULL,
+    MaUser       nchar(10) NOT NULL
+);
+
+
+--11. Bảng HANG_TV
+CREATE TABLE HANG_TV (
+    MaHang             nchar(5) NOT NULL PRIMARY KEY,
+    TenHang            nvarchar(50) NOT NULL,
+    MucChiTieuHang     decimal(18,2)NOT NULL,
+    MucDuyTri          decimal(18,2)NOT NULL,
+    KhuyenMaiUuTien    nvarchar(50)
+);
+
+--12. Bảng XEP_HANG_NAM
+CREATE TABLE XEP_HANG_NAM (
+    MaKH         nchar(10) NOT NULL,
+    Nam          int NOT NULL,
+    MaHang       nchar(5),
+    TongChiTieu  decimal(18,2),
+    NgayCapNhat  date,
+	CONSTRAINT PK_XEP_HANG_NAM PRIMARY KEY (MaKH, Nam)
+);
+
+--13. Bảng HD_TRUC_TUYEN 
+CREATE TABLE HD_TRUC_TUYEN  (
+    MaPhieu         nchar(10) NOT NULL PRIMARY KEY,
+    TongThanhTien    decimal(18,2) NOT NULL,
+    KhuyenMai       decimal(18,2),
+    DiemQuyDoi      int,
+    TongThanhTienSC  decimal(18,2) NOT NULL,
+    PhuongThucTT     nvarchar(20) NOT NULL,
+    DiaChiGiaoHang   nvarchar(100) NOT NULL,
+    PhiGiaoHang      decimal(18,2) NOT NULL
+);
+
+--14. Bảng HD_TRUC_TIEP
+CREATE TABLE HD_TRUC_TIEP (
+    MaPhieu         nchar(10) NOT NULL PRIMARY KEY,
+    TongThanhTien    decimal(18,2) NOT NULL,
+    KhuyenMai       decimal(18,2) DEFAULT 0,
+    DiemQuyDoi      int,
+    TongThanhTienSC  decimal(18,2) NOT NULL,
+    PhuongThucTT     nvarchar(20) NOT NULL,
+    MaNV             nchar(10) NOT NULL
+);
 
 -- 15. Bảng PHIEU_KHAM_BENH
 CREATE TABLE PHIEU_KHAM_BENH (
@@ -143,6 +279,60 @@ CREATE TABLE TON_KHO (
 -----------------------------------------------------------------------------------------------------
 -- PHẦN 2: THÊM RÀNG BUỘC KHÓA NGOẠI
 -----------------------------------------------------------------------------------------------------
+
+--NHAN_VIEN
+ALTER TABLE NHAN_VIEN ADD
+	CONSTRAINT FK1_NV_USER FOREIGN KEY (MaNV) REFERENCES [USER](MaUser),
+    CONSTRAINT FK2_NV_CN FOREIGN KEY (MaCN) REFERENCES CHI_NHANH(MaCN);
+
+--CHI_NHANH
+ALTER TABLE CHI_NHANH ADD
+    CONSTRAINT FK1_CN_NV FOREIGN KEY (MaNVQL) REFERENCES NHAN_VIEN(MaNV); 
+
+
+--DV_CN
+ALTER TABLE DV_CN ADD
+    CONSTRAINT FK1_DVCN_CN FOREIGN KEY (MaCN) REFERENCES CHI_NHANH(MaCN),
+    CONSTRAINT FK2_DVCN_LOAIDV FOREIGN KEY (MaLoaiDV) REFERENCES LOAI_DICH_VU(MaLoaiDV);
+
+--PHAN_CONG_CN
+ALTER TABLE PHAN_CONG_CN ADD
+    CONSTRAINT FK1_PCCN_CN FOREIGN KEY (MaCN) REFERENCES CHI_NHANH(MaCN),
+    CONSTRAINT FK2_PCCN_NV FOREIGN KEY (MaNV) REFERENCES NHAN_VIEN(MaNV);
+
+--PHIEU_DICH_VU
+ALTER TABLE PHIEU_DICH_VU ADD
+    CONSTRAINT FK1_PDV_CN FOREIGN KEY (MaCN) REFERENCES CHI_NHANH(MaCN),
+    CONSTRAINT FK2_PDV_NV FOREIGN KEY (MaNV) REFERENCES NHAN_VIEN(MaNV),
+    CONSTRAINT FK3_PDV_KH FOREIGN KEY (MaKH) REFERENCES KHACH_HANG(MaKH);
+
+--KHACH_HANG
+ALTER TABLE KHACH_HANG ADD
+    CONSTRAINT FK1_KH_USER FOREIGN KEY (MaKH) REFERENCES [USER](MaUser);
+
+--THU_CUNG
+ALTER TABLE THU_CUNG ADD
+    CONSTRAINT FK1_TC_KH FOREIGN KEY (MaKH) REFERENCES KHACH_HANG(MaKH);
+
+--TAI_KHOAN
+ALTER TABLE TAI_KHOAN ADD
+    CONSTRAINT FK1_TK_USER FOREIGN KEY (MaUser) REFERENCES [USER](MaUser);
+
+
+--XEP_HANG_NAM
+ALTER TABLE XEP_HANG_NAM ADD
+    CONSTRAINT FK1_XHN_KH FOREIGN KEY (MaKH) REFERENCES KHACH_HANG(MaKH),
+    CONSTRAINT FK2_XHN_HANG FOREIGN KEY (MaHang) REFERENCES HANG_TV(MaHang);
+
+
+--HD_TRUC_TUYEN
+ALTER TABLE HD_TRUC_TUYEN ADD
+    CONSTRAINT FK1_HDTTUYEN_PDV FOREIGN KEY (MaPhieu) REFERENCES PHIEU_DICH_VU(MaPhieu);
+
+--HD_TRUC_TIEP
+ALTER TABLE HD_TRUC_TIEP ADD
+    CONSTRAINT FK1_HDTTIEP_PDV FOREIGN KEY (MaPhieu) REFERENCES PHIEU_DICH_VU(MaPhieu),
+    CONSTRAINT FK2_HDTTIEP_NV FOREIGN KEY (MaNV) REFERENCES NHAN_VIEN(MaNV);
 
 -- PHIEU_KHAM_BENH
 ALTER TABLE PHIEU_KHAM_BENH ADD
