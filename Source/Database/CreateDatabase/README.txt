@@ -47,7 +47,7 @@ CREATE TABLE LOAI_DICH_VU (
 CREATE TABLE DV_CN (
     MaCN      nchar(10) NOT NULL,
     MaLoaiDV  nchar(5) NOT NULL,
-	CONSTRAINT PK_DV_CN PRIMARY KEY (MaCN, MaLoaiDV)
+	PRIMARY KEY (MaCN, MaLoaiDV)
 );
 
 --6. Bảng PHAN_CONG_CN
@@ -57,7 +57,7 @@ CREATE TABLE PHAN_CONG_CN (
     NgayBD   date NOT NULL,
     NgayKT   date NOT NULL ,
     Ghichu   nvarchar(100),
-	CONSTRAINT PK_PHAN_CONG_CN PRIMARY KEY (MaCN, MaNV, NgayBD),
+	PRIMARY KEY (MaCN, MaNV, NgayBD),
 	CONSTRAINT CHK_NgayKT_NgayBD CHECK (NgayKT > NgayBD)
 );
 
@@ -118,7 +118,7 @@ CREATE TABLE XEP_HANG_NAM (
     MaHang       nchar(5),
     TongChiTieu  decimal(18,2),
     NgayCapNhat  date,
-	CONSTRAINT PK_XEP_HANG_NAM PRIMARY KEY (MaKH, Nam)
+	PRIMARY KEY (MaKH, Nam)
 );
 
 --13. Bảng HD_TRUC_TUYEN 
