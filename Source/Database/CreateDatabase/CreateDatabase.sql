@@ -34,7 +34,7 @@ CREATE TABLE CHI_NHANH (
     SDT        varchar(10) NOT NULL UNIQUE,
     Giomocua   time NOT NULL,
     Giodongcua time NOT NULL,
-    MaNVQL     nchar(10) NOT NULL
+    MaNVQL     nchar(10)
 );
 
 --4. Bảng LOAI_DICH_VU
