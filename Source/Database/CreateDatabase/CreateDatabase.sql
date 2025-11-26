@@ -78,8 +78,8 @@ CREATE TABLE PHIEU_DICH_VU (
 CREATE TABLE KHACH_HANG (
     MaKH             nchar(10) NOT NULL PRIMARY KEY,
     SDT              varchar(10) NOT NULL UNIQUE,
-    Email            varchar(50) NOT NULL UNIQUE CHECK (Email LIKE '%_@_%._%'),
-    CCCD             char(12) NOT NULL UNIQUE,
+    Email            varchar(50) UNIQUE CHECK (Email LIKE '%_@_%._%'),
+    CCCD             char(12) UNIQUE,
     TongDiemTichLuy  int NOT NULL
 );
 
@@ -109,7 +109,7 @@ CREATE TABLE HANG_TV (
     TenHang            nvarchar(50) NOT NULL,
     MucChiTieuHang     decimal(18,2)NOT NULL,
     MucDuyTri          decimal(18,2)NOT NULL,
-    KhuyenMaiUuTien    nvarchar(50)
+    KhuyenMaiUuTien    nvarchar(50) NOT NULL
 );
 
 --12. Bảng XEP_HANG_NAM
