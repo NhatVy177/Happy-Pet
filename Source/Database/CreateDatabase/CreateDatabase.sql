@@ -13,7 +13,7 @@ CREATE TABLE [USER] (
     MaUser		nchar(10) NOT NULL PRIMARY KEY,
     HoTen		nvarchar(50) NOT NULL,
     NgaySinh	date CHECK (NgaySinh < GETDATE()),
-    GioiTinh	nvarchar(3) NOT NULL CHECK (GioiTinh IN ('Nam', 'Nữ')),
+    GioiTinh	nvarchar(3) NOT NULL CHECK (GioiTinh IN (N'Nam', N'Nữ')),
     LoaiUser	nchar(2) NOT NULL CHECK (LoaiUser IN ('KH', 'NV'))    
 );
 
