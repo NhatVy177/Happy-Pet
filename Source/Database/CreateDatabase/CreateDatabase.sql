@@ -69,7 +69,7 @@ CREATE TABLE PHIEU_DICH_VU (
     TrangThai      varchar(3) NOT NULL CHECK (TrangThai IN ('DD', 'DTH', 'DHT', 'DH')),
     LoaiPhieu      varchar(2) NOT NULL CHECK (LoaiPhieu IN ('KB', 'MH', 'TV')),
     MaCN           nchar(10) NOT NULL,
-    MaNV           nchar(10) NOT NULL,
+    MaNV           nchar(10),
     MaKH           nchar(10)
 );
 
