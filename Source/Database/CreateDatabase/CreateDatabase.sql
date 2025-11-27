@@ -40,7 +40,7 @@ CREATE TABLE CHI_NHANH (
 CREATE TABLE LOAI_DICH_VU (
     MaLoaiDV   nchar(5) NOT NULL PRIMARY KEY,
     TenLoaiDV  nvarchar(30) NOT NULL UNIQUE,
-    GiaCoBan   decimal(12,2) NOT NULL CHECK (GiaCoBan > 0)
+    GiaCoBan   decimal(12,2) NOT NULL CHECK (GiaCoBan >= 0)
 );
 
 --5. Bảng DV_CN
@@ -108,7 +108,7 @@ CREATE TABLE HANG_TV (
     TenHang            nvarchar(50) NOT NULL,
     MucChiTieuHang     decimal(18,2)NOT NULL,
     MucDuyTri          decimal(18,2)NOT NULL,
-    KhuyenMaiUuTien    decimal (1,0)NOT NULL
+    KhuyenMaiUuTien    decimal(1, 0)NOT NULL,
 );
 
 --12. Bảng XEP_HANG_NAM
@@ -149,7 +149,7 @@ CREATE TABLE PHIEU_KHAM_BENH (
     MaPhieu        nchar(10) NOT NULL PRIMARY KEY,
     MaTC           nchar(10) NOT NULL,
     TrieuChung     nvarchar(200) NOT NULL,
-    ChanDoan       nvarchar(200) NOT NULL,
+    ChanDoan       nvarchar(200),
     NgayHenTaiKham date,
 );
 
@@ -169,7 +169,7 @@ CREATE TABLE THUOC (
     MaThuoc     nchar(10) NOT NULL PRIMARY KEY,
     TacDungPhu  nvarchar(200),
     DangBaoChe  nvarchar(70),
-    LoaiThuoc   nvarchar(70)
+    LoaiThuoc   nvarchar(20) NOT NULL CHECK (LoaiThuoc IN (N'Cần kê đơn', N'Không cần kê đơn'))
 );
 
 --18. Bảng CT_DON_THUOC
@@ -185,7 +185,7 @@ CREATE TABLE CT_DON_THUOC (
 --19. Bảng SAN_PHAM_KHAC
 CREATE TABLE SAN_PHAM_KHAC (
     MaSP    nchar(10) NOT NULL PRIMARY KEY,
-    LoaiSP  nvarchar(70)
+    LoaiSP  nvarchar(70) NOT NULL CHECK (LoaiSP IN (N'Đồ chơi', N'Phụ kiện', N'Thức ăn', N'Quần áo'))
 );
 
 --20. Bảng VACCINE
