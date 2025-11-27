@@ -124,10 +124,10 @@ CREATE TABLE XEP_HANG_NAM (
 --13. Bảng HD_TRUC_TUYEN 
 CREATE TABLE HD_TRUC_TUYEN  (
     MaPhieu         nchar(10) NOT NULL PRIMARY KEY,
-    TongThanhTien    decimal(18,2) NOT NULL,
+    TongThanhTien    decimal(18,2),
     KhuyenMai       decimal(18,2),
     DiemQuyDoi      int,
-    TongThanhTienSC  decimal(18,2) NOT NULL,
+    TongThanhTienSC  decimal(18,2),
     PhuongThucTT     nvarchar(20) NOT NULL,
     DiaChiGiaoHang   nvarchar(100) NOT NULL,
     PhiGiaoHang      decimal(18,2) NOT NULL
@@ -136,10 +136,10 @@ CREATE TABLE HD_TRUC_TUYEN  (
 --14. Bảng HD_TRUC_TIEP
 CREATE TABLE HD_TRUC_TIEP (
     MaPhieu         nchar(10) NOT NULL PRIMARY KEY,
-    TongThanhTien    decimal(18,2) NOT NULL,
+    TongThanhTien    decimal(18,2),
     KhuyenMai       decimal(18,2) DEFAULT 0,
     DiemQuyDoi      int,
-    TongThanhTienSC  decimal(18,2) NOT NULL,
+    TongThanhTienSC  decimal(18,2),
     PhuongThucTT     nvarchar(20) NOT NULL,
     MaNV             nchar(10) NOT NULL
 );
@@ -178,7 +178,7 @@ CREATE TABLE CT_DON_THUOC (
     MaPhieu   nchar(10) NOT NULL,
     LieuLuong nvarchar(50),
     SoLuong   int NOT NULL CHECK (SoLuong >= 0),
-    ThanhTien decimal(18,2) NOT NULL CHECK (ThanhTien >= 0),
+    ThanhTien decimal(18,2) CHECK (ThanhTien >= 0),
     PRIMARY KEY (MaThuoc, MaPhieu)
 );
 
@@ -206,7 +206,7 @@ CREATE TABLE CT_TIEM_VC (
     MaPhieu   nchar(10) NOT NULL,
     NhacLai   bit,
     LieuLuong nvarchar(70),
-    ThanhTien decimal(18,2) NOT NULL CHECK (ThanhTien >= 0),
+    ThanhTien decimal(18,2) CHECK (ThanhTien >= 0),
     PRIMARY KEY (MaVaccine, MaPhieu)
 );
 
@@ -227,7 +227,7 @@ CREATE TABLE DANG_KI_GOI_TIEM (
     MaGoi      nchar(10) NOT NULL,
     NgayHetHan date,
     HieuLuc    bit NOT NULL,
-    ThanhTien  decimal(18,2) NOT NULL CHECK (ThanhTien >= 0),
+    ThanhTien  decimal(18,2) CHECK (ThanhTien >= 0),
     PRIMARY KEY (MaPhieu, MaVaccine, MaGoi)
 );
 
@@ -241,7 +241,7 @@ CREATE TABLE CT_MUA_HANG (
     MaPhieu   nchar(10) NOT NULL,
     MaMatHang nchar(10) NOT NULL,
     SoLuong   int NOT NULL CHECK (SoLuong >= 0),
-    ThanhTien decimal(18,2) NOT NULL CHECK (ThanhTien >= 0),
+    ThanhTien decimal(18,2) CHECK (ThanhTien >= 0),
     PRIMARY KEY (MaPhieu, MaMatHang)
 );
 
