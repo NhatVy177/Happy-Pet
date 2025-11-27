@@ -108,7 +108,7 @@ CREATE TABLE HANG_TV (
     TenHang            nvarchar(50) NOT NULL,
     MucChiTieuHang     decimal(18,2)NOT NULL,
     MucDuyTri          decimal(18,2)NOT NULL,
-    KhuyenMaiUuTien    nvarchar(50)NOT NULL,
+    KhuyenMaiUuTien    decimal (1,0)NOT NULL
 );
 
 --12. Bảng XEP_HANG_NAM
