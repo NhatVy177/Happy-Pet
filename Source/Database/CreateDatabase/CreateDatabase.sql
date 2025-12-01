@@ -137,7 +137,8 @@ CREATE TABLE HD_TRUC_TUYEN  (
     TongThanhTienSC  decimal(18,2),
     PhuongThucTT     nvarchar(20) NOT NULL,
     DiaChiGiaoHang   nvarchar(100) NOT NULL,
-    PhiGiaoHang      decimal(18,2) NOT NULL
+    PhiGiaoHang      decimal(18,2) NOT NULL,
+	TrangThaiHD		 varchar(3) NOT NULL CHECK (TrangThaiHD IN ('DTT', 'DH'))
 );
 
 --14. Bảng HD_TRUC_TIEP
