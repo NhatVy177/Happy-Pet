@@ -77,10 +77,17 @@ CREATE TABLE PHIEU_DICH_VU (
 CREATE TABLE KHACH_HANG (
     MaKH             nchar(10) NOT NULL PRIMARY KEY,
     SDT              varchar(10) NOT NULL UNIQUE,
-    Email            varchar(50) UNIQUE CHECK (Email LIKE '%_@_%._%'),
-    CCCD             char(12) UNIQUE,
+    Email            varchar(50) CHECK (Email LIKE '%_@_%._%'),
+    CCCD             char(12),
     TongDiemTichLuy  int
 );
+CREATE UNIQUE INDEX UQ_KH_Email
+ON KHACH_HANG(Email)
+WHERE Email IS NOT NULL;
+
+CREATE UNIQUE INDEX UQ_KH_CCCD
+ON KHACH_HANG(CCCD)
+WHERE CCCD IS NOT NULL;
 
 --9. Bảng THU_CUNG
 CREATE TABLE THU_CUNG (
