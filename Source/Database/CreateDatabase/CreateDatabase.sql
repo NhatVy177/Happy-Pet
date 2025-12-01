@@ -155,7 +155,7 @@ CREATE TABLE HD_TRUC_TIEP (
 CREATE TABLE PHIEU_KHAM_BENH (
     MaPhieu        nchar(10) NOT NULL PRIMARY KEY,
     MaTC           nchar(10) NOT NULL,
-    TrieuChung     nvarchar(200) NOT NULL,
+    TrieuChung     nvarchar(200) ,
     ChanDoan       nvarchar(200),
     NgayHenTaiKham date,
 );
