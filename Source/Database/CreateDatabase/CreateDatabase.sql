@@ -154,7 +154,7 @@ CREATE TABLE HD_TRUC_TIEP (
 
 --15. Bảng PHIEU_KHAM_BENH
 CREATE TABLE PHIEU_KHAM_BENH (
-    MaPhieu        nchar(10) NOT NULL PRIMARY KEY,
+    MaPhieu        nchar(10) PRIMARY KEY,
     MaTC           nchar(10) NOT NULL,
     TrieuChung     nvarchar(200) NOT NULL,
     ChanDoan       nvarchar(200),
@@ -163,7 +163,7 @@ CREATE TABLE PHIEU_KHAM_BENH (
 
 --16. Bảng MAT_HANG
 CREATE TABLE MAT_HANG (
-    MaMatHang    nchar(10) NOT NULL PRIMARY KEY,
+    MaMatHang    nchar(10) PRIMARY KEY,
     TenMatHang   nvarchar(50) NOT NULL,
     HangSX       nvarchar(50),
     NgaySanXuat  date,
@@ -174,7 +174,7 @@ CREATE TABLE MAT_HANG (
 
 --17. Bảng THUOC
 CREATE TABLE THUOC (
-    MaThuoc     nchar(10) NOT NULL PRIMARY KEY,
+    MaThuoc     nchar(10) PRIMARY KEY,
     TacDungPhu  nvarchar(200),
     DangBaoChe  nvarchar(70),
     LoaiThuoc   nvarchar(20) NOT NULL CHECK (LoaiThuoc IN (N'Cần kê đơn', N'Không cần kê đơn'))
@@ -182,8 +182,8 @@ CREATE TABLE THUOC (
 
 --18. Bảng CT_DON_THUOC
 CREATE TABLE CT_DON_THUOC (
-    MaThuoc   nchar(10) NOT NULL,
-    MaPhieu   nchar(10) NOT NULL,
+    MaThuoc   nchar(10),
+    MaPhieu   nchar(10),
     LieuLuong nvarchar(50),
     SoLuong   int NOT NULL CHECK (SoLuong >= 0),
     ThanhTien decimal(18,2) CHECK (ThanhTien >= 0),
@@ -192,19 +192,19 @@ CREATE TABLE CT_DON_THUOC (
 
 --19. Bảng SAN_PHAM_KHAC
 CREATE TABLE SAN_PHAM_KHAC (
-    MaSP    nchar(10) NOT NULL PRIMARY KEY,
+    MaSP    nchar(10) PRIMARY KEY,
     LoaiSP  nvarchar(70) NOT NULL CHECK (LoaiSP IN (N'Đồ chơi', N'Phụ kiện', N'Thức ăn', N'Quần áo'))
 );
 
 --20. Bảng VACCINE
 CREATE TABLE VACCINE (
-    MaVaccine     nchar(10) NOT NULL PRIMARY KEY,
+    MaVaccine     nchar(10) PRIMARY KEY,
     ChongChiDinh  nvarchar(200)
 );
 
 --21. Bảng PHIEU_TIEM_VACCINE
 CREATE TABLE PHIEU_TIEM_VACCINE (
-    MaPhieu nchar(10) NOT NULL PRIMARY KEY,
+    MaPhieu nchar(10) PRIMARY KEY,
     MaTC    nchar(10) NOT NULL
 );
 
@@ -220,7 +220,7 @@ CREATE TABLE CT_TIEM_VC (
 
 --23. Bảng GOI_TIEM_VC
 CREATE TABLE GOI_TIEM_VC (
-    MaGoi           nchar(10) NOT NULL PRIMARY KEY,
+    MaGoi           nchar(10) PRIMARY KEY,
     TenGoi          nvarchar(50),
     ThoiHan         int NOT NULL CHECK (ThoiHan >= 0),
     GiamGia         decimal(18,2) NOT NULL CHECK (GiamGia >= 0),
@@ -230,9 +230,9 @@ CREATE TABLE GOI_TIEM_VC (
 
 --24. Bảng DANG_KI_GOI_TIEM
 CREATE TABLE DANG_KI_GOI_TIEM (
-    MaPhieu    nchar(10) NOT NULL,
-    MaVaccine  nchar(10) NOT NULL,
-    MaGoi      nchar(10) NOT NULL,
+    MaPhieu    nchar(10),
+    MaVaccine  nchar(10),
+    MaGoi      nchar(10),
     NgayHetHan date,
     HieuLuc    bit NOT NULL,
     ThanhTien  decimal(18,2) CHECK (ThanhTien >= 0),
@@ -246,8 +246,8 @@ CREATE TABLE PHIEU_MUA_HANG (
 
 --26. Bảng CT_MUA_HANG
 CREATE TABLE CT_MUA_HANG (
-    MaPhieu   nchar(10) NOT NULL,
-    MaMatHang nchar(10) NOT NULL,
+    MaPhieu   nchar(10),
+    MaMatHang nchar(10),
     SoLuong   int NOT NULL CHECK (SoLuong >= 0),
     ThanhTien decimal(18,2) CHECK (ThanhTien >= 0),
     PRIMARY KEY (MaPhieu, MaMatHang)
@@ -255,8 +255,8 @@ CREATE TABLE CT_MUA_HANG (
 
 --27. Bảng DANH_GIA_SP
 CREATE TABLE DANH_GIA_SP (
-    MaPhieu       nchar(10) NOT NULL,
-    MaMatHang     nchar(10) NOT NULL,
+    MaPhieu       nchar(10),
+    MaMatHang     nchar(10),
     DiemChatLuong decimal(4,2) NOT NULL CHECK (DiemChatLuong >= 0 and DiemChatLuong <=5 ),
     BinhLuan      nvarchar(200),
     NgayDang      date,
@@ -265,7 +265,7 @@ CREATE TABLE DANH_GIA_SP (
 
 --28. Bảng DANH_GIA_DV
 CREATE TABLE DANH_GIA_DV (
-    MaPhieu        nchar(10) NOT NULL PRIMARY KEY,
+    MaPhieu        nchar(10) PRIMARY KEY,
     DiemChatLuong  decimal(4,2) NOT NULL CHECK (DiemChatLuong >= 0 and DiemChatLuong <=5 ),
     DiemThaiDoNV   decimal(4,2) NOT NULL CHECK (DiemThaiDoNV >= 0 and DiemThaiDoNV <= 5),
     DiemTongThe    decimal(4,2) NOT NULL CHECK (DiemTongThe >= 0 and DiemTongThe <= 5),
@@ -275,8 +275,8 @@ CREATE TABLE DANH_GIA_DV (
 
 --29. Bảng TON_KHO
 CREATE TABLE TON_KHO (
-    MaCN       nchar(10) NOT NULL,
-    MaMatHang  nchar(10) NOT NULL,
+    MaCN       nchar(10),
+    MaMatHang  nchar(10),
     SoLuongTon int NOT NULL CHECK (SoLuongTon >= 0),
     PRIMARY KEY (MaCN, MaMatHang)
 );
