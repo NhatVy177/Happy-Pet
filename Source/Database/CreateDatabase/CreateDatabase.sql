@@ -9,7 +9,7 @@ GO
 -----------------------------------------------------------------------------------------------------
 --1. Bảng USER
 CREATE TABLE [USER] (
-    MaUser		nchar(10) NOT NULL PRIMARY KEY,
+    MaUser		nchar(10) PRIMARY KEY,
     HoTen		nvarchar(50) NOT NULL,
     NgaySinh	date CHECK (NgaySinh < GETDATE()),
     GioiTinh	nvarchar(3) NOT NULL CHECK (GioiTinh IN (N'Nam', N'Nữ')),
@@ -18,7 +18,7 @@ CREATE TABLE [USER] (
 
 --2. Bảng NHAN_VIEN
 CREATE TABLE NHAN_VIEN (
-    MaNV		nchar(10) NOT NULL PRIMARY KEY,
+    MaNV		nchar(10) PRIMARY KEY,
     NgayVaoLam	date NOT NULL,
     LuongCoBan	decimal(12,2) NOT NULL CHECK (LuongCoBan > 0),
     Chucvu		nvarchar(50) NOT NULL,
@@ -27,7 +27,7 @@ CREATE TABLE NHAN_VIEN (
 
 --3. Bảng CHI_NHANH
 CREATE TABLE CHI_NHANH (
-    MaCN       nchar(10) NOT NULL PRIMARY KEY,
+    MaCN       nchar(10) PRIMARY KEY,
     TenCN      nvarchar(50) NOT NULL UNIQUE,
     DiaChi     nvarchar(100) NOT NULL UNIQUE,
     SDT        varchar(10) NOT NULL UNIQUE,
@@ -38,23 +38,23 @@ CREATE TABLE CHI_NHANH (
 
 --4. Bảng LOAI_DICH_VU
 CREATE TABLE LOAI_DICH_VU (
-    MaLoaiDV   nchar(5) NOT NULL PRIMARY KEY,
+    MaLoaiDV   nchar(5) PRIMARY KEY,
     TenLoaiDV  nvarchar(30) NOT NULL UNIQUE,
     GiaCoBan   decimal(12,2) NOT NULL CHECK (GiaCoBan >= 0)
 );
 
 --5. Bảng DV_CN
 CREATE TABLE DV_CN (
-    MaCN      nchar(10) NOT NULL,
-    MaLoaiDV  nchar(5) NOT NULL,
+    MaCN      nchar(10),
+    MaLoaiDV  nchar(5),
 	PRIMARY KEY (MaCN, MaLoaiDV)
 );
 
 --6. Bảng PHAN_CONG_CN
 CREATE TABLE PHAN_CONG_CN (
-    MaCN     nchar(10) NOT NULL,
-    MaNV     nchar(10) NOT NULL,
-    NgayBD   date NOT NULL,
+    MaCN     nchar(10),
+    MaNV     nchar(10),
+    NgayBD   date,
     NgayKT   date NOT NULL ,
     Ghichu   nvarchar(100),
 	PRIMARY KEY (MaCN, MaNV, NgayBD),
@@ -63,7 +63,7 @@ CREATE TABLE PHAN_CONG_CN (
 
 --7. Bảng PHIEU_DV
 CREATE TABLE PHIEU_DICH_VU (
-    MaPhieu        nchar(10) NOT NULL PRIMARY KEY,
+    MaPhieu        nchar(10) PRIMARY KEY,
     TG_ThucHienDV  datetime NOT NULL,
     TG_LapPhieu    datetime NOT NULL,
     TrangThai      varchar(3) NOT NULL CHECK (TrangThai IN ('DD', 'DTH', 'DHT', 'DH')),
@@ -75,7 +75,7 @@ CREATE TABLE PHIEU_DICH_VU (
 
 --8. Bảng KHACH_HANG
 CREATE TABLE KHACH_HANG (
-    MaKH             nchar(10) NOT NULL PRIMARY KEY,
+    MaKH             nchar(10) PRIMARY KEY,
     SDT              varchar(10) NOT NULL UNIQUE,
     Email            varchar(50) CHECK (Email LIKE '%_@_%._%'),
     CCCD             char(12),
@@ -91,7 +91,7 @@ WHERE CCCD IS NOT NULL;
 
 --9. Bảng THU_CUNG
 CREATE TABLE THU_CUNG (
-    MaTC             nchar(10) NOT NULL PRIMARY KEY,
+    MaTC             nchar(10) PRIMARY KEY,
     Ten              nvarchar(50),
     Loai             nvarchar(30) NOT NULL,
     Giong            nvarchar(30) NOT NULL,
@@ -103,7 +103,7 @@ CREATE TABLE THU_CUNG (
 
 --10. Bảng TAI_KHOAN
 CREATE TABLE TAI_KHOAN (
-    TenDangNhap  varchar(30) NOT NULL PRIMARY KEY,
+    TenDangNhap  varchar(30) PRIMARY KEY,
     MatKhau      varchar(50) NOT NULL,
     MaUser       nchar(10) NOT NULL
 );
@@ -111,7 +111,7 @@ CREATE TABLE TAI_KHOAN (
 
 --11. Bảng HANG_TV
 CREATE TABLE HANG_TV (
-    MaHang             nchar(5) NOT NULL PRIMARY KEY,
+    MaHang             nchar(5) PRIMARY KEY,
     TenHang            nvarchar(50) NOT NULL,
     MucChiTieuHang     decimal(18,2)NOT NULL,
     MucDuyTri          decimal(18,2)NOT NULL,
@@ -120,8 +120,8 @@ CREATE TABLE HANG_TV (
 
 --12. Bảng XEP_HANG_NAM
 CREATE TABLE XEP_HANG_NAM (
-    MaKH         nchar(10) NOT NULL,
-    Nam          int NOT NULL,
+    MaKH         nchar(10),
+    Nam          int,
     MaHang       nchar(5),
     TongChiTieu  decimal(18,2),
     NgayCapNhat  date,
@@ -130,7 +130,7 @@ CREATE TABLE XEP_HANG_NAM (
 
 --13. Bảng HD_TRUC_TUYEN 
 CREATE TABLE HD_TRUC_TUYEN  (
-    MaPhieu         nchar(10) NOT NULL PRIMARY KEY,
+    MaPhieu         nchar(10) PRIMARY KEY,
     TongThanhTien    decimal(18,2),
     KhuyenMai       decimal(18,2),
     DiemQuyDoi      int,
@@ -143,7 +143,7 @@ CREATE TABLE HD_TRUC_TUYEN  (
 
 --14. Bảng HD_TRUC_TIEP
 CREATE TABLE HD_TRUC_TIEP (
-    MaPhieu         nchar(10) NOT NULL PRIMARY KEY,
+    MaPhieu         nchar(10) PRIMARY KEY,
     TongThanhTien    decimal(18,2),
     KhuyenMai       decimal(18,2) DEFAULT 0,
     DiemQuyDoi      int,
