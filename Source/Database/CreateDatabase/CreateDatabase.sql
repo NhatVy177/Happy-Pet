@@ -81,13 +81,6 @@ CREATE TABLE KHACH_HANG (
     CCCD             char(12),
     TongDiemTichLuy  int
 );
-CREATE UNIQUE INDEX UQ_KH_Email
-ON KHACH_HANG(Email)
-WHERE Email IS NOT NULL;
-
-CREATE UNIQUE INDEX UQ_KH_CCCD
-ON KHACH_HANG(CCCD)
-WHERE CCCD IS NOT NULL;
 
 --9. Bảng THU_CUNG
 CREATE TABLE THU_CUNG (
@@ -164,12 +157,12 @@ CREATE TABLE PHIEU_KHAM_BENH (
 --16. Bảng MAT_HANG
 CREATE TABLE MAT_HANG (
     MaMatHang    nchar(10) PRIMARY KEY,
-    TenMatHang   nvarchar(50) NOT NULL,
+    TenMatHang   nvarchar(80) NOT NULL,
     HangSX       nvarchar(50),
     NgaySanXuat  date,
     NgayHetHan   date,
     DonGia       decimal(18,2) NOT NULL CHECK (DonGia >= 0),
-    LoaiMH         varchar(3) NOT NULL CHECK (LoaiMH IN ('T','VC','SPK'))
+    LoaiMH       varchar(3) NOT NULL CHECK (LoaiMH IN ('T','VC','SPK'))
 );
 
 --17. Bảng THUOC
@@ -177,7 +170,8 @@ CREATE TABLE THUOC (
     MaThuoc     nchar(10) PRIMARY KEY,
     TacDungPhu  nvarchar(200),
     DangBaoChe  nvarchar(70),
-    LoaiThuoc   nvarchar(20) NOT NULL CHECK (LoaiThuoc IN (N'Cần kê đơn', N'Không cần kê đơn'))
+    LoaiThuoc   nvarchar(20) NOT NULL CHECK (LoaiThuoc IN (N'Cần kê đơn', N'Không cần kê đơn')),
+	DonGia decimal(18,2) NOT NULL CHECK (DonGia >= 0)
 );
 
 --18. Bảng CT_DON_THUOC
@@ -199,7 +193,8 @@ CREATE TABLE SAN_PHAM_KHAC (
 --20. Bảng VACCINE
 CREATE TABLE VACCINE (
     MaVaccine     nchar(10) PRIMARY KEY,
-    ChongChiDinh  nvarchar(200)
+    ChongChiDinh  nvarchar(200),
+	DonGia decimal(18,2) NOT NULL CHECK (DonGia >= 0)
 );
 
 --21. Bảng PHIEU_TIEM_VACCINE
@@ -307,8 +302,7 @@ ALTER TABLE PHAN_CONG_CN ADD
 --PHIEU_DICH_VU
 ALTER TABLE PHIEU_DICH_VU ADD
     CONSTRAINT FK1_PDV_CN FOREIGN KEY (MaCN) REFERENCES CHI_NHANH(MaCN),
-    CONSTRAINT FK2_PDV_NV FOREIGN KEY (MaNV) REFERENCES NHAN_VIEN(MaNV),
-    CONSTRAINT FK3_PDV_KH FOREIGN KEY (MaKH) REFERENCES KHACH_HANG(MaKH);
+    CONSTRAINT FK2_PDV_NV FOREIGN KEY (MaNV) REFERENCES NHAN_VIEN(MaNV);
 
 --KHACH_HANG
 ALTER TABLE KHACH_HANG ADD
