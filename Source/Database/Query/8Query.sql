@@ -1,4 +1,4 @@
-﻿USE HAPPYPET_test
+USE HAPPYPET_test
 GO
 
 -- T1: Tra cứu danh sách thú cưng đến hẹn tái khám
@@ -54,7 +54,8 @@ SELECT
     PDV.TG_ThucHienDV AS N'Thời gian hẹn', 
     U_KH.HoTen AS N'Tên khách hàng', 
     PDV.TrangThai AS N'Trạng thái',
-    PDV.LoaiPhieu AS N'Loại phiếu'
+    PDV.LoaiPhieu AS N'Loại phiếu',
+	U_NV.HoTen AS N'Nhân viên phụ trách'
 FROM PHIEU_DICH_VU PDV
 	LEFT JOIN [USER] U_KH ON PDV.MaKH = U_KH.MaUser 
 	LEFT JOIN NHAN_VIEN NV ON PDV.MaNV = NV.MaNV
