@@ -1,6 +1,8 @@
 ﻿USE HAPPYPET_test
 GO
 
+--Gồm 14 sp nha    
+
 -- 1. Bác sĩ xem lịch sử khám của thú cưng
 CREATE OR ALTER PROC sp_XemLichSuKham
     @MaTC NCHAR(10)
@@ -628,3 +630,4 @@ BEGIN
     END CATCH
 END;
 GO
+
