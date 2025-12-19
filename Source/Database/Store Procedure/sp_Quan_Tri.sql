@@ -338,6 +338,7 @@ END;
 GO
 
 -- 12. Update xếp hạng hội viên cho khách hàng
+
 CREATE OR ALTER PROC sp_CapNhatXepHangHoiVien
     @Nam INT -- Năm cần xếp hạng (Ví dụ: 2025)
 AS
@@ -454,6 +455,171 @@ BEGIN
         GROUP BY MaHang
         ORDER BY MaHang;
 
+    END TRY
+    BEGIN CATCH
+        ROLLBACK TRANSACTION;
+        DECLARE @Err NVARCHAR(2000) = ERROR_MESSAGE();
+        RAISERROR(@Err, 16, 1);
+    END CATCH
+END;
+GO
+
+-- 13. Nhập hàng vào kho
+CREATE OR ALTER PROC sp_NhapHangVaoKho
+    @MaCN NCHAR(10),
+    @MaMatHang NCHAR(10),
+    @SoLuongNhap INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    -- Validation
+    IF @SoLuongNhap <= 0
+    BEGIN
+        RAISERROR(N'Số lượng nhập phải lớn hơn 0', 16, 1);
+        RETURN;
+    END
+
+    IF NOT EXISTS (SELECT 1 FROM CHI_NHANH WHERE MaCN = @MaCN)
+    BEGIN
+        RAISERROR(N'Chi nhánh không tồn tại', 16, 1);
+        RETURN;
+    END
+
+    IF NOT EXISTS (SELECT 1 FROM MAT_HANG WHERE MaMatHang = @MaMatHang)
+    BEGIN
+        RAISERROR(N'Mặt hàng không tồn tại', 16, 1);
+        RETURN;
+    END
+
+    BEGIN TRANSACTION;
+    BEGIN TRY
+        IF EXISTS (SELECT 1 FROM TON_KHO WHERE MaCN = @MaCN AND MaMatHang = @MaMatHang)
+        BEGIN
+            -- Update cộng dồn
+            UPDATE TON_KHO
+            SET SoLuongTon = SoLuongTon + @SoLuongNhap
+            WHERE MaCN = @MaCN AND MaMatHang = @MaMatHang;
+        END
+        ELSE
+        BEGIN
+            -- Insert mới
+            INSERT INTO TON_KHO (MaCN, MaMatHang, SoLuongTon)
+            VALUES (@MaCN, @MaMatHang, @SoLuongNhap);
+        END
+
+        COMMIT TRANSACTION;
+        PRINT N'Nhập kho thành công.';
+    END TRY
+    BEGIN CATCH
+        ROLLBACK TRANSACTION;
+        DECLARE @Err NVARCHAR(2000) = ERROR_MESSAGE();
+        RAISERROR(@Err, 16, 1);
+    END CATCH
+END;
+GO
+
+-- 14. Thêm 1 mặt hàng mới
+CREATE OR ALTER PROC sp_ThemMatHang
+    @TenMatHang NVARCHAR(80),
+    @HangSX NVARCHAR(50),
+    @NgaySanXuat DATE,
+    @NgayHetHan DATE,
+    @DonGia DECIMAL(18,2),
+    @LoaiMH VARCHAR(3), -- 'T', 'VC', 'SPK' (Dùng để phân loại insert vào bảng con)
+    
+    -- Các tham số riêng (Nullable)
+    @TacDungPhu NVARCHAR(200) = NULL,   -- Cho Thuốc
+    @DangBaoChe NVARCHAR(70) = NULL,    -- Cho Thuốc
+    @LoaiThuoc NVARCHAR(20) = NULL,     -- Cho Thuốc
+    @ChongChiDinh NVARCHAR(200) = NULL, -- Cho Vaccine
+    @LoaiSP NVARCHAR(70) = NULL         -- Cho SP Khác (Bắt buộc nếu là SPK)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    -- =============================================
+    -- 1. VALIDATION ĐẦU VÀO
+    -- =============================================
+    
+    -- Kiểm tra loại mặt hàng hợp lệ
+    IF @LoaiMH NOT IN ('T', 'VC', 'SPK')
+    BEGIN
+        RAISERROR(N'Lỗi: Loại mặt hàng không hợp lệ (Chỉ nhận T, VC, SPK)!', 16, 1);
+        RETURN;
+    END
+
+    -- Kiểm tra riêng cho Sản Phẩm Khác (SPK)
+    IF @LoaiMH = 'SPK'
+    BEGIN
+        IF @LoaiSP IS NULL
+        BEGIN
+            RAISERROR(N'Lỗi: Vui lòng chọn Loại sản phẩm (Đồ chơi, Phụ kiện...)!', 16, 1);
+            RETURN;
+        END
+
+        IF @LoaiSP NOT IN (N'Đồ chơi', N'Phụ kiện', N'Thức ăn', N'Quần áo')
+        BEGIN
+            RAISERROR(N'Lỗi: Loại sản phẩm không hợp lệ! Chỉ chấp nhận: Đồ chơi, Phụ kiện, Thức ăn, Quần áo.', 16, 1);
+            RETURN;
+        END
+    END
+
+    -- =============================================
+    -- 2. SINH MÃ TỰ ĐỘNG (Format: MHxxxxxx)
+    -- =============================================
+    DECLARE @MaMatHang NCHAR(10);
+    DECLARE @MaxID INT;
+    
+    -- Lấy số lớn nhất hiện tại của TẤT CẢ các mặt hàng có mã bắt đầu bằng MH
+    SELECT @MaxID = MAX(CAST(RIGHT(MaMatHang, 6) AS INT)) 
+    FROM MAT_HANG 
+    WHERE MaMatHang LIKE 'MH%';
+
+    IF @MaxID IS NULL SET @MaxID = 0;
+    
+    -- Tạo mã mới (Ví dụ: MH000001, MH000002...)
+    SET @MaMatHang = 'MH' + RIGHT('000000' + CAST(@MaxID + 1 AS VARCHAR(6)), 6);
+
+    -- Kiểm tra trùng lặp (Double check)
+    WHILE EXISTS (SELECT 1 FROM MAT_HANG WHERE MaMatHang = @MaMatHang)
+    BEGIN
+        SET @MaxID = @MaxID + 1;
+        SET @MaMatHang = 'MH' + RIGHT('000000' + CAST(@MaxID AS VARCHAR(6)), 6);
+    END
+
+    -- =============================================
+    -- 3. INSERT DỮ LIỆU
+    -- =============================================
+    BEGIN TRANSACTION;
+    BEGIN TRY
+        -- B1: Insert vào bảng cha MAT_HANG
+        INSERT INTO MAT_HANG (MaMatHang, TenMatHang, HangSX, NgaySanXuat, NgayHetHan, DonGia, LoaiMH)
+        VALUES (@MaMatHang, @TenMatHang, @HangSX, @NgaySanXuat, @NgayHetHan, @DonGia, @LoaiMH);
+
+        -- B2: Insert vào bảng con tương ứng dựa trên LoaiMH
+        IF @LoaiMH = 'T'
+        BEGIN
+            INSERT INTO THUOC (MaThuoc, TacDungPhu, DangBaoChe, LoaiThuoc, DonGia)
+            VALUES (@MaMatHang, @TacDungPhu, @DangBaoChe, ISNULL(@LoaiThuoc, N'Không cần kê đơn'), @DonGia);
+        END
+        ELSE IF @LoaiMH = 'VC'
+        BEGIN
+            INSERT INTO VACCINE (MaVaccine, ChongChiDinh, DonGia)
+            VALUES (@MaMatHang, @ChongChiDinh, @DonGia);
+        END
+        ELSE IF @LoaiMH = 'SPK'
+        BEGIN
+            INSERT INTO SAN_PHAM_KHAC (MaSP, LoaiSP)
+            VALUES (@MaMatHang, @LoaiSP);
+        END
+
+        COMMIT TRANSACTION;
+        
+        -- Trả về mã hàng mới
+        SELECT @MaMatHang AS MaMatHangMoi;
+        
     END TRY
     BEGIN CATCH
         ROLLBACK TRANSACTION;
