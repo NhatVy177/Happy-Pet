@@ -1,4 +1,4 @@
-﻿USE HAPPYPET_test
+USE HAPPYPET_test
 GO
 
 -- 1. Khách hàng đặt lịch hẹn qua web
@@ -1243,5 +1243,84 @@ BEGIN
         DECLARE @Err NVARCHAR(2000) = ERROR_MESSAGE();
         RAISERROR(@Err, 16, 1);
     END CATCH
+END;
+GO
+
+-- 9. Khách hàng đánh giá dịch vụ
+CREATE OR ALTER PROC sp_DanhGiaDichVu
+    @MaPhieu NCHAR(10),
+    @DiemChatLuong DECIMAL(4,2), -- Thang 5
+    @DiemThaiDoNV DECIMAL(4,2),
+    @DiemTongThe DECIMAL(4,2),
+    @BinhLuan NVARCHAR(200)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- 1. Check phiếu
+    DECLARE @TrangThai VARCHAR(3);
+    DECLARE @MaKH_Phieu NCHAR(10);
+    
+    SELECT @TrangThai = TrangThai, @MaKH_Phieu = MaKH 
+    FROM PHIEU_DICH_VU WHERE MaPhieu = @MaPhieu;
+
+    -- Chỉ cho đánh giá khi đã hoàn tất (DHT) hoặc (HT)
+    IF @TrangThai = 'DHT'
+    BEGIN
+        RAISERROR(N'Lỗi: Chỉ được đánh giá khi dịch vụ đã hoàn tất.', 16, 1);
+        RETURN;
+    END
+
+    -- Check đã đánh giá chưa (Tránh spam)
+    IF EXISTS (SELECT 1 FROM DANH_GIA_DV WHERE MaPhieu = @MaPhieu)
+    BEGIN
+        RAISERROR(N'Lỗi: Bạn đã đánh giá phiếu này rồi.', 16, 1);
+        RETURN;
+    END
+
+    -- 2. Insert
+    INSERT INTO DANH_GIA_DV (MaPhieu, DiemChatLuong, DiemThaiDoNV, DiemTongThe, BinhLuan, NgayDang)
+    VALUES (@MaPhieu, @DiemChatLuong, @DiemThaiDoNV, @DiemTongThe, @BinhLuan, GETDATE());
+
+    PRINT N'Cảm ơn bạn đã đánh giá dịch vụ!';
+END;
+GO
+
+-- 10. Khách hàng đánh giá sản phẩm
+CREATE OR ALTER PROC sp_DanhGiaSanPham
+    @MaPhieu NCHAR(10),
+    @MaMatHang NCHAR(10),
+    @DiemChatLuong DECIMAL(4,2),
+    @BinhLuan NVARCHAR(200)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- 1. Check xem khách có mua sản phẩm này trong phiếu này không
+    IF NOT EXISTS (SELECT 1 FROM CT_MUA_HANG WHERE MaPhieu = @MaPhieu AND MaMatHang = @MaMatHang)
+    BEGIN
+        RAISERROR(N'Lỗi: Sản phẩm này không có trong đơn hàng của bạn.', 16, 1);
+        RETURN;
+    END
+
+    -- 2. Check trạng thái đơn hàng (Phải là đã giao/hoàn tất)
+    IF NOT EXISTS (SELECT 1 FROM PHIEU_DICH_VU WHERE MaPhieu = @MaPhieu AND TrangThai IN ('DHT', 'HT'))
+    BEGIN
+        RAISERROR(N'Lỗi: Đơn hàng chưa hoàn tất, chưa thể đánh giá.', 16, 1);
+        RETURN;
+    END
+
+    -- 3. Check đã đánh giá chưa
+    IF EXISTS (SELECT 1 FROM DANH_GIA_SP WHERE MaPhieu = @MaPhieu AND MaMatHang = @MaMatHang)
+    BEGIN
+        RAISERROR(N'Lỗi: Bạn đã đánh giá sản phẩm này trong đơn hàng này rồi.', 16, 1);
+        RETURN;
+    END
+
+    -- 4. Insert
+    INSERT INTO DANH_GIA_SP (MaPhieu, MaMatHang, DiemChatLuong, BinhLuan, NgayDang)
+    VALUES (@MaPhieu, @MaMatHang, @DiemChatLuong, @BinhLuan, GETDATE());
+
+    PRINT N'Đánh giá sản phẩm thành công!';
 END;
 GO
