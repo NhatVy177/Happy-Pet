@@ -1,4 +1,27 @@
-﻿USE HAPPYPET_test
+-- Phân hệ Bác sĩ thú y
+-- 1 sp_XemLichSuKham : Bác sĩ xem chi tiết các lần khám bệnh cũ của một thú cưng (triệu chứng, chẩn đoán, bác sĩ phụ trách).
+-- 2 sp_TraCuuThuoc : Tra cứu thông tin thuốc, tác dụng phụ và kiểm tra số lượng tồn kho tại chi nhánh hiện tại.
+-- 3 sp_XemLichSuTiem : Xem lịch sử các mũi vaccine thú cưng đã tiêm (tên vaccine, liều lượng, loại tiêm lần đầu hay nhắc lại).
+
+-- Phân hệ Quản lý (Quản trị & Nhân sự)
+-- 4 sp_DieuDongNhanSu : Điều chuyển nhân viên sang chi nhánh mới, tự động cập nhật lịch sử phân công và thông tin nhân sự.
+-- 7 sp_ThongKeNhanVienGioi : Liệt kê các nhân viên có điểm đánh giá thái độ từ khách hàng tốt (>= ngưỡng điểm x).
+-- 12 sp_CapNhatXepHangHoiVien : Quy trình chốt sổ ngày 31/12 hàng năm để xếp hạng lại khách hàng dựa trên tổng chi tiêu năm qua.
+
+-- Phân hệ Quản lý (Kho & Sản phẩm)
+-- 8 sp_ThongKeSanPhamTot : Liệt kê các sản phẩm nhận được điểm đánh giá chất lượng cao từ khách hàng.
+-- 9 sp_CanhBaoHetHang : Cảnh báo danh sách các mặt hàng có số lượng tồn kho dưới ngưỡng cho phép tại từng chi nhánh.
+-- 13 sp_NhapHangVaoKho : Cập nhật số lượng khi nhập thêm hàng vào kho của một chi nhánh cụ thể.
+-- 14 sp_ThemMatHang : Tạo mới thông tin mặt hàng, tự động phân loại và lưu vào bảng Thuốc, Vaccine hoặc Sản phẩm khác.
+
+-- Phân hệ Quản lý (Báo cáo Doanh thu)
+-- 5 sp_ThongKeDoanhThuSanPham : Báo cáo doanh thu chi tiết theo từng mặt hàng trong một khoảng thời gian.
+-- 6 sp_ThongKeDoanhThuChiNhanh : So sánh doanh thu Offline và Online giữa các chi nhánh trong tháng/năm.
+-- 10 sp_TopDichVuDoanhThu : Tìm kiếm loại dịch vụ mang lại nguồn thu lớn nhất cho hệ thống trong 6 tháng gần nhất.
+-- 11 sp_ThongKeHoiVien : Thống kê số lượng khách hàng theo từng hạng thành viên (Vip, Thân thiết, Cơ bản) của một năm.
+
+
+USE HAPPYPET
 GO
 
 --Gồm 14 sp nha    
@@ -630,5 +653,6 @@ BEGIN
     END CATCH
 END;
 GO
+
 
 
