@@ -2,6 +2,7 @@
 GO
 
 -- 1. Đăng ký tài khoản cho khách hàng
+-- Thêm phần liên kết với hồ sơ cũ
 CREATE OR ALTER PROC sp_DangKyTaiKhoanKH
     @TenDangNhap VARCHAR(30),
     @MatKhau VARCHAR(70),
@@ -15,77 +16,128 @@ AS
 BEGIN
     SET NOCOUNT ON;
     
-    -- Xử lý NULL
+    -- Xử lý NULL cho chuỗi rỗng
     IF @Email = '' SET @Email = NULL;
     IF @CCCD = '' SET @CCCD = NULL;
 
-    -- 1. VALIDATION
+    -- 1. VALIDATION (Kiểm tra dữ liệu đầu vào)
+    
+    -- Check định dạng SĐT
     IF LEN(@SDT) <> 10 OR LEFT(@SDT, 1) <> '0' OR @SDT LIKE '%[^0-9]%'
     BEGIN
         RAISERROR(N'Lỗi: Số điện thoại không đúng định dạng!', 16, 1);
         RETURN;
     END
 
+    -- Check định dạng CCCD
+    IF @CCCD IS NOT NULL
+    BEGIN
+        IF LEN(@CCCD) <> 12 OR LEFT(@CCCD, 1) <> '0' OR @CCCD LIKE '%[^0-9]%'
+        BEGIN
+            RAISERROR(N'Lỗi: CCCD phải có 12 số, bắt đầu bằng số 0 và không có ký tự chữ!', 16, 1);
+            RETURN;
+        END
+    END
+
+    -- Check trùng Tên đăng nhập (Bắt buộc duy nhất)
     IF EXISTS (SELECT 1 FROM TAI_KHOAN WHERE TenDangNhap = @TenDangNhap)
     BEGIN
         RAISERROR(N'Lỗi: Tên đăng nhập đã tồn tại!', 16, 1);
         RETURN;
     END
 
-    IF EXISTS (SELECT 1 FROM KHACH_HANG WHERE SDT = @SDT)
+    -- Check trùng Email (Trừ trường hợp chính khách hàng đó đang cập nhật)
+    IF @Email IS NOT NULL AND EXISTS (
+        SELECT 1 FROM KHACH_HANG 
+        WHERE Email = @Email AND SDT <> @SDT -- Khác SĐT nghĩa là của người khác
+    )
     BEGIN
-        RAISERROR(N'Lỗi: Số điện thoại đã được sử dụng!', 16, 1);
+        RAISERROR(N'Lỗi: Email này đã được người khác sử dụng!', 16, 1);
         RETURN;
     END
 
-    IF @Email IS NOT NULL AND EXISTS (SELECT 1 FROM KHACH_HANG WHERE Email = @Email)
-    BEGIN
-        RAISERROR(N'Lỗi: Email này đã được đăng ký!', 16, 1);
-        RETURN;
-    END
+    -- 2. XỬ LÝ LOGIC CRM (KHỚP HỒ SƠ)
 
-	IF @CCCD IS NOT NULL
-		BEGIN
-			IF LEN(@CCCD) <> 12 OR LEFT(@CCCD, 1) <> '0' OR @CCCD LIKE '%[^0-9]%'
-				BEGIN
-					RAISERROR(N'Lỗi: CCCD phải có 12 số, bắt đầu bằng số 0 và không có ký tự chữ!', 16, 1);
-					RETURN;
-				END
-		END
+    DECLARE @MaUserExisting NCHAR(10) = NULL;
 
-    -- 2. TỰ ĐỘNG SINH MÃ USER 
-    DECLARE @MaUser NCHAR(10);
-    DECLARE @MaxID INT;
+    -- Kiểm tra xem SĐT này đã có trong bảng KHACH_HANG chưa?
+    SELECT @MaUserExisting = MaKH FROM KHACH_HANG WHERE SDT = @SDT;
 
-    -- Bước 1: Lấy số lớn nhất hiện tại (Toàn bộ User)
-    SELECT @MaxID = MAX(CAST(RIGHT(MaUser, 6) AS INT)) FROM [USER];
-    IF @MaxID IS NULL SET @MaxID = 0;
-    
-    -- Bước 2: Tính mã dự kiến
-    SET @MaxID = @MaxID + 1;
-    SET @MaUser = 'U' + RIGHT('000000' + CAST(@MaxID AS VARCHAR(6)), 6);
-
-    -- Bước 3: VÒNG LẶP KIỂM TRA TRÙNG
-    WHILE EXISTS (SELECT 1 FROM [USER] WHERE MaUser = @MaUser)
-    BEGIN
-        SET @MaxID = @MaxID + 1;
-        SET @MaUser = 'U' + RIGHT('000000' + CAST(@MaxID AS VARCHAR(6)), 6);
-    END
-
-    -- 3. INSERT
     BEGIN TRANSACTION;
     BEGIN TRY
-        INSERT INTO [USER] (MaUser, HoTen, NgaySinh, GioiTinh, LoaiUser)
-        VALUES (@MaUser, @HoTen, @NgaySinh, @GioiTinh, 'KH');
+        
+        -- TRƯỜNG HỢP 1: KHÁCH ĐÃ TỪNG ĐẾN QUÁN (SĐT ĐÃ CÓ)
+        IF @MaUserExisting IS NOT NULL
+        BEGIN
+            -- Kiểm tra xem khách này đã có tài khoản online chưa?
+            IF EXISTS (SELECT 1 FROM TAI_KHOAN WHERE MaUser = @MaUserExisting)
+            BEGIN
+                -- Nếu có rồi thì báo lỗi
+                RAISERROR(N'Lỗi: Số điện thoại này đã được đăng ký tài khoản rồi!', 16, 1);
+                ROLLBACK TRANSACTION;
+                RETURN;
+            END
 
-        INSERT INTO TAI_KHOAN (TenDangNhap, MatKhau, MaUser)
-        VALUES (@TenDangNhap, @MatKhau, @MaUser);
+            -- Nếu chưa có tài khoản online -> THỰC HIỆN CẬP NHẬT (KHỚP HỒ SƠ)
+            
+            -- A. Cập nhật bảng [USER] (Cập nhật họ tên, ngày sinh mới nhất khách nhập)
+            UPDATE [USER]
+            SET HoTen = @HoTen,
+                NgaySinh = @NgaySinh,
+                GioiTinh = @GioiTinh
+            WHERE MaUser = @MaUserExisting;
 
-        INSERT INTO KHACH_HANG (MaKH, SDT, Email, CCCD, TongDiemTichLuy)
-        VALUES (@MaUser, @SDT, @Email, @CCCD, 0);
+            -- B. Cập nhật bảng KHACH_HANG (Email, CCCD nếu có)
+            UPDATE KHACH_HANG
+            SET Email = ISNULL(@Email, Email), -- Nếu khách nhập email mới thì lấy, ko thì giữ cũ
+                CCCD = ISNULL(@CCCD, CCCD)
+            WHERE MaKH = @MaUserExisting;
 
-        COMMIT TRANSACTION;
-        SELECT @MaUser as MaUserMoi, N'Đăng ký thành công' as ThongBao;
+            -- C. Tạo tài khoản đăng nhập (INSERT vào TAI_KHOAN)
+            INSERT INTO TAI_KHOAN (TenDangNhap, MatKhau, MaUser)
+            VALUES (@TenDangNhap, @MatKhau, @MaUserExisting);
+
+            -- Thông báo
+            COMMIT TRANSACTION;
+            SELECT @MaUserExisting as MaUserMoi, N'Đăng ký thành công! Đã đồng bộ với hồ sơ cũ tại cửa hàng.' as ThongBao;
+        END
+
+        -- TRƯỜNG HỢP 2: KHÁCH MỚI TINH (SĐT CHƯA CÓ)
+        ELSE
+        BEGIN
+            -- --- TỰ ĐỘNG SINH MÃ USER
+            DECLARE @MaUserNew NCHAR(10);
+            DECLARE @MaxID INT;
+
+            SELECT @MaxID = MAX(CAST(RIGHT(MaUser, 6) AS INT)) FROM [USER];
+            IF @MaxID IS NULL SET @MaxID = 0;
+            
+            SET @MaxID = @MaxID + 1;
+            SET @MaUserNew = 'U' + RIGHT('000000' + CAST(@MaxID AS VARCHAR(6)), 6);
+
+            -- Vòng lặp check trùng mã (An toàn)
+            WHILE EXISTS (SELECT 1 FROM [USER] WHERE MaUser = @MaUserNew)
+            BEGIN
+                SET @MaxID = @MaxID + 1;
+                SET @MaUserNew = 'U' + RIGHT('000000' + CAST(@MaxID AS VARCHAR(6)), 6);
+            END
+
+            -- A. Insert bảng [USER]
+            INSERT INTO [USER] (MaUser, HoTen, NgaySinh, GioiTinh, LoaiUser)
+            VALUES (@MaUserNew, @HoTen, @NgaySinh, @GioiTinh, 'KH');
+
+            -- B. Insert bảng TAI_KHOAN
+            INSERT INTO TAI_KHOAN (TenDangNhap, MatKhau, MaUser)
+            VALUES (@TenDangNhap, @MatKhau, @MaUserNew);
+
+            -- C. Insert bảng KHACH_HANG
+            INSERT INTO KHACH_HANG (MaKH, SDT, Email, CCCD, TongDiemTichLuy)
+            VALUES (@MaUserNew, @SDT, @Email, @CCCD, 0);
+
+            COMMIT TRANSACTION;
+            SELECT @MaUserNew as MaUserMoi, N'Đăng ký mới thành công!' as ThongBao;
+        END
+
     END TRY
     BEGIN CATCH
         IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
@@ -275,11 +327,11 @@ CREATE OR ALTER PROC sp_CapNhatThuCung
     @MaKH NCHAR(10),       -- Để check xem có đúng chủ không
     @MaTC VARCHAR(20),     -- Mã thú (VARCHAR 20 cho khớp với DB)
     @TenTC NVARCHAR(50),
-    @Loai NVARCHAR(20),    -- Thêm Loại (nếu form có sửa loài)
+    @Loai NVARCHAR(20),    -- Thêm Loài (form có sửa loài)
     @Giong NVARCHAR(50),
     @NgaySinh DATE,       
     @GioiTinh NVARCHAR(10),   
-    @TinhTrangSucKhoe NVARCHAR(100) -- Đã thêm lại dòng này
+    @TinhTrangSucKhoe NVARCHAR(100) 
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -503,7 +555,7 @@ BEGIN
 
     SELECT 
         MaTC,
-        Ten,
+        Ten, --Bỏ as TenThuCung cho web dễ nhận diện
         Loai,      
         Giong,     
         NgSinh,
@@ -664,5 +716,59 @@ BEGIN
 END;
 GO
 
-EXEC sp_XemDanhSachChiNhanh
+-- 15. Khách hàng xóa thú cưng (chưa có lịch sử tiêm/khám)
+CREATE OR ALTER PROCEDURE sp_XoaThuCung
+    @MaKH NCHAR(10),
+    @MaTC NCHAR(10)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    -- 1. KIỂM TRA QUYỀN SỞ HỮU & TỒN TẠI
+    DECLARE @ChuSoHuu NCHAR(10);
+    SELECT @ChuSoHuu = MaKH FROM THU_CUNG WHERE MaTC = @MaTC;
+
+    IF @ChuSoHuu IS NULL
+    BEGIN
+        RAISERROR(N'Lỗi: Thú cưng không tồn tại!', 16, 1);
+        RETURN;
+    END
+
+    IF @ChuSoHuu <> @MaKH
+    BEGIN
+        RAISERROR(N'Lỗi: Bạn không có quyền xóa thú cưng của người khác!', 16, 1);
+        RETURN;
+    END
+
+    -- 2. KIỂM TRA RÀNG BUỘC DỮ LIỆU (Có lịch sử khám/tiêm chưa?)
+    -- Check bảng PHIEU_KHAM_BENH
+    IF EXISTS (SELECT 1 FROM PHIEU_KHAM_BENH WHERE MaTC = @MaTC)
+    BEGIN
+        RAISERROR(N'Lỗi: Không thể xóa thú cưng đã có hồ sơ khám bệnh (Dữ liệu cần lưu trữ lịch sử).', 16, 1);
+        RETURN;
+    END
+
+    -- Check bảng PHIEU_TIEM_VACCINE
+    IF EXISTS (SELECT 1 FROM PHIEU_TIEM_VACCINE WHERE MaTC = @MaTC)
+    BEGIN
+        RAISERROR(N'Lỗi: Không thể xóa thú cưng đã có hồ sơ tiêm vaccine.', 16, 1);
+        RETURN;
+    END
+
+    -- 3. THỰC HIỆN XÓA
+    BEGIN TRANSACTION;
+    BEGIN TRY
+        DELETE FROM THU_CUNG WHERE MaTC = @MaTC;
+        
+        COMMIT TRANSACTION;
+        PRINT N'Đã xóa thú cưng thành công.';
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
+        RAISERROR(@ErrorMessage, 16, 1);
+    END CATCH
+END;
+GO
 
