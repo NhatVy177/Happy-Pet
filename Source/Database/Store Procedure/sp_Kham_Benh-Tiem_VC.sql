@@ -1,4 +1,18 @@
-﻿USE HAPPYPET_test
+-- Thông tin các SP trong hệ thống Happy Pet (Phân hệ Bác sĩ) --
+-- Nhóm nghiệp vụ Khám bệnh
+-- 1 sp_CapNhatKetQuaKham : Bác sĩ ghi nhận chẩn đoán bệnh và ngày hẹn tái khám (nếu có) vào phiếu khám.
+-- 2 sp_ThemThuocVaoDon : Kê đơn thuốc cho thú cưng, tự động trừ tồn kho thuốc tại chi nhánh và tính thành tiền.
+-- 3 sp_XoaThuocKhoiDon : Loại bỏ thuốc khỏi đơn thuốc (khi bác sĩ thay đổi chỉ định), đồng thời hoàn lại số lượng thuốc vào kho.
+-- 4 sp_BacSi_KetThucKham : Xác nhận hoàn tất quá trình khám bệnh chuyên môn, chuyển trạng thái phiếu sang "Đã hoàn thành" (DHT).
+
+-- Nhóm nghiệp vụ Tiêm chủng (Vaccine)
+-- 5 sp_BacSi_ThemGoiTiem : Ghi nhận đăng ký gói tiêm mới cho khách hàng vãng lai (không đặt trước), tự động trừ liều đầu tiên trong kho.
+-- 6 sp_BacSi_XoaGoiTiem : Hủy thông tin gói tiêm vừa đăng ký và hoàn lại số lượng vaccine vào kho chi nhánh.
+-- 7 sp_BacSi_ThemVaccineLe : Ghi nhận tiêm vaccine lẻ hoặc tiêm nhắc lại theo gói sẵn có (nếu theo gói thì thành tiền sẽ bằng 0).
+-- 8 sp_BacSi_XoaVaccineLe : Xóa mũi tiêm lẻ khỏi phiếu, hoàn kho vaccine và tự động "mở lại" hiệu lực gói tiêm nếu đó là mũi tiêm nhắc lại vừa bị xóa.
+-- 9 sp_BacSi_KetThucTiem : Xác nhận hoàn tất quy trình tiêm chủng, chuyển trạng thái phiếu sang "Đã hoàn thành" (DHT).
+
+USE HAPPYPET
 GO
 
 -- 1. Bác sĩ điền thông tin chẩn đoán và ngày hẹn tái khám vào phiếu.
@@ -595,4 +609,5 @@ BEGIN
         RAISERROR(@Err, 16, 1);
     END CATCH
 END;
+
 GO
