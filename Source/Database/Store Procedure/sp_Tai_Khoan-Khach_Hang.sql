@@ -1,4 +1,4 @@
-﻿USE HAPPYPET_test
+﻿USE HAPPYPET
 GO
 
 -- 1. Đăng ký tài khoản cho khách hàng
@@ -43,6 +43,15 @@ BEGIN
         RAISERROR(N'Lỗi: Email này đã được đăng ký!', 16, 1);
         RETURN;
     END
+
+	IF @CCCD IS NOT NULL
+		BEGIN
+			IF LEN(@CCCD) <> 12 OR LEFT(@CCCD, 1) <> '0' OR @CCCD LIKE '%[^0-9]%'
+				BEGIN
+					RAISERROR(N'Lỗi: CCCD phải có 12 số, bắt đầu bằng số 0 và không có ký tự chữ!', 16, 1);
+					RETURN;
+				END
+		END
 
     -- 2. TỰ ĐỘNG SINH MÃ USER 
     DECLARE @MaUser NCHAR(10);
@@ -133,11 +142,15 @@ CREATE OR ALTER PROC sp_CapNhatThongTinKH
     @HoTen NVARCHAR(50),
     @NgaySinh DATE,
     @GioiTinh NVARCHAR(3),
-    @Email VARCHAR(50),
-    @CCCD CHAR(12)
+    @Email VARCHAR(50) = NULL, -- Thêm = NULL để không bắt buộc
+    @CCCD CHAR(12) = NULL      -- Thêm = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
+
+    -- Để tránh lỗi khi validate và lưu vào DB cho sạch
+    IF @Email = '' SET @Email = NULL;
+    IF @CCCD = '' SET @CCCD = NULL;
 
     -- 1. VALIDATION
     -- Check User có tồn tại không
@@ -147,21 +160,31 @@ BEGIN
         RETURN;
     END
 
-    -- Check định dạng Email
-    IF @Email NOT LIKE '%_@__%.__%'
+    -- Check định dạng Email (CHỈ CHECK NẾU CÓ NHẬP)
+    IF @Email IS NOT NULL AND @Email NOT LIKE '%_@__%.__%'
     BEGIN
         RAISERROR(N'Lỗi: Định dạng Email không hợp lệ!', 16, 1);
         RETURN;
     END
 
-    -- Check trùng Email (Chỉ báo lỗi nếu Email đó thuộc về NGƯỜI KHÁC)
-    IF EXISTS (SELECT 1 FROM KHACH_HANG WHERE Email = @Email AND MaKH <> @MaUser)
+    -- Check trùng Email (CHỈ CHECK NẾU CÓ NHẬP)
+    IF @Email IS NOT NULL AND EXISTS (SELECT 1 FROM KHACH_HANG WHERE Email = @Email AND MaKH <> @MaUser)
     BEGIN
         RAISERROR(N'Lỗi: Email này đã được sử dụng bởi tài khoản khác!', 16, 1);
         RETURN;
     END
 
-    -- Check ngày sinh (Phải nhỏ hơn ngày hiện tại)
+    -- Check CCCD (CHỈ CHECK NẾU CÓ NHẬP)
+    IF @CCCD IS NOT NULL
+    BEGIN
+        IF LEN(@CCCD) <> 12 OR LEFT(@CCCD, 1) <> '0' OR @CCCD LIKE '%[^0-9]%'
+        BEGIN
+            RAISERROR(N'Lỗi: CCCD phải có 12 số, bắt đầu bằng số 0 và không có ký tự chữ!', 16, 1);
+            RETURN;
+        END
+    END
+
+    -- Check ngày sinh
     IF @NgaySinh >= GETDATE()
     BEGIN
         RAISERROR(N'Lỗi: Ngày sinh không hợp lệ!', 16, 1);
@@ -179,6 +202,7 @@ BEGIN
         WHERE MaUser = @MaUser;
 
         -- Update bảng KHACH_HANG
+        -- Nếu @Email là NULL thì trong DB sẽ được cập nhật thành NULL (xóa email cũ)
         UPDATE KHACH_HANG
         SET Email = @Email,
             CCCD = @CCCD
@@ -248,46 +272,45 @@ GO
 
 -- 6. Cập nhật thông tin thú cưng
 CREATE OR ALTER PROC sp_CapNhatThuCung
-    @MaTC NCHAR(10),
+    @MaKH NCHAR(10),       -- Để check xem có đúng chủ không
+    @MaTC VARCHAR(20),     -- Mã thú (VARCHAR 20 cho khớp với DB)
     @TenTC NVARCHAR(50),
-    @Giong NVARCHAR(30),
-    @NgaySinh DATE,          
-    @GioiTinh NVARCHAR(3),   
-    @TinhTrangSucKhoe NVARCHAR(100)
+    @Loai NVARCHAR(20),    -- Thêm Loại (nếu form có sửa loài)
+    @Giong NVARCHAR(50),
+    @NgaySinh DATE,       
+    @GioiTinh NVARCHAR(10),   
+    @TinhTrangSucKhoe NVARCHAR(100) -- Đã thêm lại dòng này
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- 1. VALIDATION (Kiểm tra dữ liệu đầu vào)
-    
-    -- Kiểm tra mã thú cưng có tồn tại không
-    IF NOT EXISTS (SELECT 1 FROM THU_CUNG WHERE MaTC = @MaTC)
+    -- 1. Check xem thú cưng có tồn tại và ĐÚNG CHỦ không
+    IF NOT EXISTS (SELECT 1 FROM THU_CUNG WHERE MaTC = @MaTC AND RTRIM(MaKH) = RTRIM(@MaKH))
     BEGIN
-        RAISERROR(N'Lỗi: Mã thú cưng không tồn tại hoặc đã bị xóa!', 16, 1);
+        RAISERROR(N'Lỗi: Không tìm thấy thú cưng hoặc bạn không phải chủ sở hữu!', 16, 1);
         RETURN;
     END
 
-    -- Kiểm tra ngày sinh (Phải là ngày trong quá khứ)
+    -- 2. Check ngày sinh
     IF @NgaySinh >= GETDATE()
     BEGIN
-        RAISERROR(N'Lỗi: Ngày sinh thú cưng phải nhỏ hơn ngày hiện tại!', 16, 1);
+        RAISERROR(N'Lỗi: Ngày sinh phải nhỏ hơn ngày hiện tại!', 16, 1);
         RETURN;
     END
 
-    -- 2. Thực hiện cập nhật
+    -- 3. Update
     BEGIN TRY
         UPDATE THU_CUNG
         SET Ten = @TenTC,
+            Loai = @Loai,         -- Update luôn loại cho đầy đủ
             Giong = @Giong,
             NgSinh = @NgaySinh,      
             GioiTinh = @GioiTinh,   
             TinhTrangSucKhoe = @TinhTrangSucKhoe
-        WHERE MaTC = @MaTC;
-
-        -- PRINT N'Cập nhật thành công'; 
+        WHERE MaTC = @MaTC AND RTRIM(MaKH) = RTRIM(@MaKH);
     END TRY
     BEGIN CATCH
-        DECLARE @ErrorMessage NVARCHAR(4000) = N'Lỗi cập nhật thú cưng: ' + ERROR_MESSAGE();
+        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
         RAISERROR(@ErrorMessage, 16, 1);
     END CATCH
 END;
@@ -345,6 +368,9 @@ BEGIN
 END;
 GO
 
+EXEC sp_XemThongTinCaNhan U000001
+GO
+
 -- 8. Khách hàng xem lịch sử mua sắm
 CREATE OR ALTER PROC sp_XemLichSuMuaSam
     @MaKH NCHAR(10)
@@ -376,6 +402,9 @@ BEGIN
       AND PDV.LoaiPhieu = 'MH'
     ORDER BY PDV.TG_ThucHienDV DESC; -- Sắp xếp từ mới nhất đến cũ nhất
 END;
+GO
+
+EXEC sp_XemLichSuMuaSam U000274
 GO
 
 -- 9. Khách hàng xem lịch sử khám bệnh của một thú cưng
@@ -464,6 +493,7 @@ BEGIN
 END;
 GO
 
+
 -- 11. Khách hàng xem danh sách thú cưng
 CREATE OR ALTER PROC sp_XemDanhSachThuCung
     @MaKH NCHAR(10)
@@ -473,7 +503,7 @@ BEGIN
 
     SELECT 
         MaTC,
-        Ten AS TenThuCung,
+        Ten,
         Loai,      
         Giong,     
         NgSinh,
@@ -617,7 +647,7 @@ BEGIN
             ELSE N'Đã đóng cửa'
         END AS TrangThaiHoatDong,
 
-        -- Gom nhóm các dịch vụ thành 1 chuỗi (VD: Khám bệnh, Tiêm vaccine)
+        -- [MỚI] Gom nhóm các dịch vụ thành 1 chuỗi (VD: Khám bệnh, Tiêm vaccine)
         ISNULL((
             SELECT STRING_AGG(LDV.TenLoaiDV, N', ') WITHIN GROUP (ORDER BY LDV.TenLoaiDV)
             FROM DV_CN D
@@ -634,58 +664,5 @@ BEGIN
 END;
 GO
 
--- 15. Khách hàng xóa thú cưng (chưa có lịch sử tiêm/khám)
-CREATE OR ALTER PROCEDURE sp_XoaThuCung
-    @MaKH NCHAR(10),
-    @MaTC NCHAR(10)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
+EXEC sp_XemDanhSachChiNhanh
 
-    -- 1. KIỂM TRA QUYỀN SỞ HỮU & TỒN TẠI
-    DECLARE @ChuSoHuu NCHAR(10);
-    SELECT @ChuSoHuu = MaKH FROM THU_CUNG WHERE MaTC = @MaTC;
-
-    IF @ChuSoHuu IS NULL
-    BEGIN
-        RAISERROR(N'Lỗi: Thú cưng không tồn tại!', 16, 1);
-        RETURN;
-    END
-
-    IF @ChuSoHuu <> @MaKH
-    BEGIN
-        RAISERROR(N'Lỗi: Bạn không có quyền xóa thú cưng của người khác!', 16, 1);
-        RETURN;
-    END
-
-    -- 2. KIỂM TRA RÀNG BUỘC DỮ LIỆU (Có lịch sử khám/tiêm chưa?)
-    -- Check bảng PHIEU_KHAM_BENH
-    IF EXISTS (SELECT 1 FROM PHIEU_KHAM_BENH WHERE MaTC = @MaTC)
-    BEGIN
-        RAISERROR(N'Lỗi: Không thể xóa thú cưng đã có hồ sơ khám bệnh (Dữ liệu cần lưu trữ lịch sử).', 16, 1);
-        RETURN;
-    END
-
-    -- Check bảng PHIEU_TIEM_VACCINE
-    IF EXISTS (SELECT 1 FROM PHIEU_TIEM_VACCINE WHERE MaTC = @MaTC)
-    BEGIN
-        RAISERROR(N'Lỗi: Không thể xóa thú cưng đã có hồ sơ tiêm vaccine.', 16, 1);
-        RETURN;
-    END
-
-    -- 3. THỰC HIỆN XÓA
-    BEGIN TRANSACTION;
-    BEGIN TRY
-        DELETE FROM THU_CUNG WHERE MaTC = @MaTC;
-        
-        COMMIT TRANSACTION;
-        PRINT N'Đã xóa thú cưng thành công.';
-    END TRY
-    BEGIN CATCH
-        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
-        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        RAISERROR(@ErrorMessage, 16, 1);
-    END CATCH
-END;
-GO
