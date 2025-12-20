@@ -1,4 +1,27 @@
-﻿USE HAPPYPET
+-- Phân hệ Khách hàng (Hồ sơ & Cá nhân)
+-- 1 sp_DangKyTaiKhoanKH : Đăng ký tài khoản mới, tự động kiểm tra và đồng bộ với hồ sơ SĐT cũ nếu đã từng đến cửa hàng.
+-- 4 sp_CapNhatThongTinKH : Khách hàng tự cập nhật thông tin cá nhân (Họ tên, Ngày sinh, Email, CCCD).
+-- 7 sp_XemThongTinCaNhan : Hiển thị chi tiết hồ sơ khách, bao gồm điểm tích lũy và hạng thành viên của năm trước.
+-- 8 sp_XemLichSuMuaSam : Xem danh sách các đơn hàng đã mua tại các chi nhánh.
+-- 13 sp_XemLichSuHoatDong : Xem tổng hợp tất cả hoạt động (Khám, Tiêm, Mua hàng) kèm trạng thái và tổng tiền.
+
+-- Phân hệ Khách hàng (Quản lý Thú cưng)
+-- 5 sp_ThemThuCung : Đăng ký thú cưng mới vào tài khoản, tự động sinh mã TCxxxxxx.
+-- 6 sp_CapNhatThuCung : Sửa đổi thông tin thú cưng (Tên, giống, tình trạng sức khỏe).
+-- 9 sp_XemLichSuKhamBenh : Xem chi tiết các lần khám, triệu chứng và chẩn đoán của một thú cưng cụ thể.
+-- 10 sp_XemLichSuTiemPhong : Xem lịch sử các mũi tiêm vaccine, liều lượng và bác sĩ thực hiện.
+-- 11 sp_XemDanhSachThuCung : Liệt kê tất cả thú cưng của khách hàng, có tính toán thêm tuổi (năm/tháng).
+-- 15 sp_XoaThuCung : Xóa thú cưng khỏi hệ thống (Chỉ áp dụng nếu thú cưng đó chưa phát sinh lịch sử khám/tiêm).
+
+-- Phân hệ Khách hàng (Tra cứu & Chung)
+-- 12 sp_TraCuuSanPham : Tìm kiếm sản phẩm theo tên hoặc loại, hiển thị tình trạng còn hàng/hết hàng.
+-- 14 sp_XemDanhSachChiNhanh : Tra cứu thông tin chi nhánh, giờ làm việc và trạng thái đóng/mở cửa thời gian thực.
+
+-- Phân hệ Chung (Auth - Khách hàng & Nhân viên)
+-- 2 sp_DangNhap : Đăng nhập hệ thống, trả về thông tin định danh và vai trò (Loại User, Chức vụ).
+-- 3 sp_DoiMatKhau : Cập nhật mật khẩu mới cho tài khoản.
+
+USE HAPPYPET
 GO
 
 -- 1. Đăng ký tài khoản cho khách hàng
@@ -771,4 +794,5 @@ BEGIN
     END CATCH
 END;
 GO
+
 
