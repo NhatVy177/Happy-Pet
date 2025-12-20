@@ -1,4 +1,15 @@
-﻿USE HAPPYPET_test
+-- Phân hệ Khách hàng (Đặt hàng trực tuyến)
+-- 1 sp_KhoiTaoDonHangOnline : Khởi tạo đơn hàng mới, tự động tính phí giao hàng dựa trên ngày nhận và kiểm tra vùng giao nội thành.
+-- 2 sp_ThemSanPhamVaoDon : Thêm mặt hàng vào giỏ hàng, tự động trừ số lượng tồn kho và cập nhật lại tổng tiền đơn hàng.
+-- 3 sp_XoaSanPhamKhoiDon : Xóa mặt hàng khỏi giỏ, hoàn lại số lượng vào kho chi nhánh và tính toán lại tổng tiền.
+-- 4 sp_HoanTatDonHangOnline : Khách hàng xác nhận đặt đơn, áp dụng giảm giá theo hạng thành viên năm ngoái và trừ điểm tích lũy đã dùng.
+-- 5 sp_HuyDonOnline : Cho phép khách hủy đơn trong vòng 120 phút kể từ khi đặt. Tự động hoàn kho và trả lại điểm tích lũy cho khách.
+
+-- Phân hệ Nhân viên (Xử lý đơn hàng)
+-- 6 sp_CapNhatTrangThaiDonHang : Nhân viên cập nhật đơn sang "Đang giao" hoặc "Hoàn tất". Khi hoàn tất, hệ thống tự động cộng điểm tích lũy mới (50k = 1 điểm) cho khách.
+
+
+USE HAPPYPET
 GO
 
 -- 1. Khách mua hàng online
@@ -531,4 +542,5 @@ BEGIN
         RAISERROR(@ErrorMessage, 16, 1);
     END CATCH
 END;
+
 GO
