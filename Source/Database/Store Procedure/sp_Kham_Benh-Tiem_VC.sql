@@ -39,6 +39,13 @@ BEGIN
         RETURN;
     END
 
+     -- Kiểm tra Ngày hẹn tái khám phải lớn hơn ngày hiện tại
+    IF @NgayHenTaiKham <= CAST(GETDATE() AS DATE)
+    BEGIN
+        RAISERROR(N'Lỗi: Ngày hẹn tái khám phải lớn hơn ngày hiện tại!', 16, 1);
+        RETURN;
+    END
+        
     -- 2. UPDATE
     BEGIN TRY
         UPDATE PHIEU_KHAM_BENH
@@ -611,3 +618,4 @@ BEGIN
 END;
 
 GO
+
