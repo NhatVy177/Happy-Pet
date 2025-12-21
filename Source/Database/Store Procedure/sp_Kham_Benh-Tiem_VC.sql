@@ -97,6 +97,16 @@ BEGIN
         RETURN;
     END
 
+    -- Kiểm tra ngày hết hạn thuốc nếu có
+    DECLARE @NgayHetHan DATE;
+    SELECT @NgayHetHan = NgayHetHan FROM THUOC WHERE MaThuoc = @MaThuoc;
+
+    IF @NgayHetHan < CAST(GETDATE() AS DATE)
+    BEGIN
+        RAISERROR(N'Lỗi: Thuốc đã hết hạn sử dụng!', 16, 1);
+        RETURN;
+    END
+        
     -- Kiểm tra Tồn kho
     DECLARE @TonKhoHienTai INT;
     SELECT @TonKhoHienTai = SoLuongTon FROM TON_KHO WHERE MaCN = @MaCN AND MaMatHang = @MaThuoc;
@@ -618,4 +628,5 @@ BEGIN
 END;
 
 GO
+
 
