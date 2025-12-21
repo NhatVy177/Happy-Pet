@@ -508,7 +508,48 @@ BEGIN
 END;
 GO
 
--- 3. Nhân viên tạo phiếu DV cho khách trực tiếp tại cửa hàng
+-- 3. Khách hàng xem lịch bác sĩ
+CREATE OR ALTER PROC sp_XemLichBacSi
+    @MaCN NCHAR(10)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- 1. VALIDATION: Kiểm tra chi nhánh có tồn tại không
+    IF NOT EXISTS (SELECT 1 FROM CHI_NHANH WHERE MaCN = @MaCN)
+    BEGIN
+        RAISERROR(N'Lỗi: Chi nhánh không tồn tại!', 16, 1);
+        RETURN;
+    END
+
+    -- 2. TRUY VẤN
+    SELECT 
+        NV.MaNV AS MaBacSi,
+        U.HoTen AS TenBacSi,
+        NV.Chucvu,
+        CN.TenCN AS ChiNhanh,
+        
+        -- Format giờ cho đẹp (HH:mm) thay vì hiện dây (HH:mm:ss)
+        LEFT(CAST(CN.Giomocua AS VARCHAR), 5) AS GioBatDau,
+        LEFT(CAST(CN.Giodongcua AS VARCHAR), 5) AS GioKetThuc,
+
+        -- Hiển thị trạng thái hiện tại (Real-time) để tiện cho lễ tân/khách hàng
+        CASE 
+            WHEN CAST(GETDATE() AS TIME) BETWEEN CN.Giomocua AND CN.Giodongcua 
+            THEN N'Đang trong ca trực'
+            ELSE N'Đã tan ca'
+        END AS TrangThaiHienTai
+
+    FROM NHAN_VIEN NV
+    JOIN [USER] U ON NV.MaNV = U.MaUser
+    JOIN CHI_NHANH CN ON NV.MaCN = CN.MaCN
+    WHERE NV.MaCN = @MaCN
+      AND NV.Chucvu = N'Bác sĩ thú y' -- Chỉ lấy Bác sĩ
+    ORDER BY U.HoTen ASC;
+END;
+GO
+
+-- 4. Nhân viên tạo phiếu DV cho khách trực tiếp tại cửa hàng
 CREATE OR ALTER PROC sp_TaoPhieuTrucTiep
     @MaKH NCHAR(10),
     @MaTC NCHAR(10) = NULL,
@@ -642,7 +683,7 @@ BEGIN
 END;
 GO
 
--- 4. Nhân viên check in khi khách (đã đặt lịch trước) tới cửa hàng, gán bác sĩ phụ trách
+-- 5. Nhân viên check in khi khách (đã đặt lịch trước) tới cửa hàng, gán bác sĩ phụ trách
 CREATE OR ALTER PROC sp_CheckInKhachHang
     @MaPhieu NCHAR(10),
     @MaNV_PhuTrach NCHAR(10) -- Bác sĩ hoặc NV thực hiện dịch vụ
@@ -754,7 +795,7 @@ BEGIN
 END;
 GO
 
--- 5. Khách hàng hủy lịch hẹn qua web
+-- 6. Khách hàng hủy lịch hẹn qua web
 CREATE OR ALTER PROCEDURE sp_HuyLichHen
     @MaPhieu NCHAR(10),
     @MaKH NCHAR(10)
@@ -906,7 +947,7 @@ BEGIN
 END;
 GO
 
--- 6. Phiếu tự động hủy khi quá giờ hẹn 120ph mà phiếu chưa được check in
+-- 7. Phiếu tự động hủy khi quá giờ hẹn 120ph mà phiếu chưa được check in
 CREATE OR ALTER PROCEDURE sp_TuDongHuyLichHen
 AS
 BEGIN
@@ -1064,7 +1105,7 @@ BEGIN
 END;
 GO
 
--- 7. Nhân viên xác nhận phiếu đã hoàn tất sau khi khách hàng thực hiện xong
+-- 8. Nhân viên xác nhận phiếu đã hoàn tất sau khi khách hàng thực hiện xong
 CREATE OR ALTER PROC sp_HoanTatDichVu
     @MaPhieu NCHAR(10)
 AS
@@ -1094,7 +1135,7 @@ BEGIN
 END;
 GO
 
--- 8. Nhân viên xuất hóa đơn trực tiếp
+-- 9. Nhân viên xuất hóa đơn trực tiếp
 CREATE OR ALTER PROCEDURE sp_XuatHoaDonTrucTiep
     @MaPhieu NCHAR(10),
     @DiemMuonDung INT = 0,        -- Số điểm khách muốn dùng để giảm giá
@@ -1268,7 +1309,7 @@ BEGIN
 END;
 GO
 
--- 9. Khách hàng đánh giá dịch vụ
+-- 10. Khách hàng đánh giá dịch vụ
 CREATE OR ALTER PROC sp_DanhGiaDichVu
     @MaPhieu NCHAR(10),
     @DiemChatLuong DECIMAL(4,2), -- Thang 5
@@ -1308,7 +1349,7 @@ BEGIN
 END;
 GO
 
--- 10. Khách hàng đánh giá sản phẩm
+-- 11. Khách hàng đánh giá sản phẩm
 CREATE OR ALTER PROC sp_DanhGiaSanPham
     @MaPhieu NCHAR(10),
     @MaMatHang NCHAR(10),
@@ -1346,4 +1387,5 @@ BEGIN
     PRINT N'Đánh giá sản phẩm thành công!';
 END;
 GO
+
 
