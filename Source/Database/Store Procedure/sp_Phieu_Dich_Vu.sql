@@ -814,7 +814,7 @@ BEGIN
 END;
 GO
 
--- 6. Khách hàng hủy lịch hẹn qua web
+-- 6. Hủy lịch hẹn
 CREATE OR ALTER PROCEDURE sp_HuyLichHen
     @MaPhieu NCHAR(10),
     @MaKH NCHAR(10)
@@ -823,43 +823,43 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    -- =============================================
-    -- 1. VALIDATION (KIỂM TRA HỢP LỆ)
-    -- =============================================
-    
-    -- Kiểm tra phiếu có tồn tại và thuộc về khách hàng này không
+    -- 1. VALIDATION CƠ BẢN
     IF NOT EXISTS (SELECT 1 FROM PHIEU_DICH_VU WHERE MaPhieu = @MaPhieu AND MaKH = @MaKH)
     BEGIN
         RAISERROR(N'Lỗi: Phiếu hẹn không tồn tại hoặc bạn không có quyền hủy phiếu này!', 16, 1);
         RETURN;
     END
 
-    -- Chỉ cho phép hủy khi trạng thái là 'DD' (Đã đặt - Chưa check-in)
+    -- Lấy thông tin phiếu
     DECLARE @TrangThai VARCHAR(3);
     DECLARE @MaCN NCHAR(10);
-    
-    SELECT @TrangThai = TrangThai, @MaCN = MaCN 
+    DECLARE @TG_ThucHienDV DATETIME; 
+
+    SELECT 
+        @TrangThai = TrangThai, 
+        @MaCN = MaCN,
+        @TG_ThucHienDV = TG_ThucHienDV -- Lấy giờ hẹn
     FROM PHIEU_DICH_VU WHERE MaPhieu = @MaPhieu;
 
+    -- Kiểm tra trạng thái
     IF @TrangThai <> 'DD'
     BEGIN
         RAISERROR(N'Lỗi: Không thể hủy phiếu đang thực hiện hoặc đã hoàn thành/đã hủy!', 16, 1);
         RETURN;
     END
 
-    -- =============================================
+    IF DATEADD(HOUR, 2, GETDATE()) > @TG_ThucHienDV
+    BEGIN
+        RAISERROR(N'Lỗi: Đã sát giờ hẹn (dưới 2 tiếng). Bạn không thể hủy lúc này, vui lòng liên hệ hotline!', 16, 1);
+        RETURN;
+    END
+-- =============================================
     -- 2. XỬ LÝ LOGIC HOÀN TRẢ (TRANSACTION)
     -- =============================================
     BEGIN TRANSACTION;
     BEGIN TRY
         
-        -- ---------------------------------------------------------
-        -- BƯỚC A: XỬ LÝ "HỒI SINH" GÓI TIÊM CŨ (Nếu có dùng)
-        -- ---------------------------------------------------------
-        -- Logic: Tìm các gói tiêm của khách này đang bị HieuLuc = 0 (đã hết).
-        -- Kiểm tra xem nếu hủy mũi tiêm trong phiếu này đi, thì số lượng đã tiêm có nhỏ hơn quy định không.
-        -- Nếu nhỏ hơn -> Mở lại gói (HieuLuc = 1).
-
+        -- ... (Đoạn xử lý Hồi sinh gói tiêm giữ nguyên y chang cũ) ...
         -- Tạo bảng tạm lưu các loại vaccine có trong phiếu hủy
         DECLARE @VaccineCanCheck TABLE (MaVaccine NCHAR(10));
         INSERT INTO @VaccineCanCheck (MaVaccine)
@@ -887,13 +887,12 @@ BEGIN
             JOIN GOI_TIEM_VC G ON DK.MaGoi = G.MaGoi
             WHERE P.MaKH = @MaKH 
               AND DK.MaVaccine = @Cur_MaVaccine
-              AND DK.HieuLuc = 0 -- Gói đã bị đóng
-              AND DK.NgayHetHan >= CAST(GETDATE() AS DATE) -- Nhưng vẫn còn hạn sử dụng
-            ORDER BY DK.NgayHetHan DESC; -- Lấy gói mới nhất
+              AND DK.HieuLuc = 0 
+              AND DK.NgayHetHan >= CAST(GETDATE() AS DATE) 
+            ORDER BY DK.NgayHetHan DESC; 
 
             IF @MaPhieuDK IS NOT NULL
             BEGIN
-                -- Đếm số mũi đã tiêm thực tế (TRỪ ĐI mũi đang chuẩn bị xóa trong phiếu này)
                 DECLARE @SoMuiThucTe INT;
                 SELECT @SoMuiThucTe = COUNT(*)
                 FROM CT_TIEM_VC CT
@@ -903,7 +902,6 @@ BEGIN
                   AND P.TG_LapPhieu >= @NgayDangKy
                   AND CT.MaPhieu <> @MaPhieu; 
 
-                -- Nếu số mũi thực tế < Quy định -> Hồi sinh gói
                 IF @SoMuiThucTe < @SoMuiQuyDinh
                 BEGIN
                     UPDATE DANG_KI_GOI_TIEM
@@ -911,49 +909,36 @@ BEGIN
                     WHERE MaPhieu = @MaPhieuDK AND MaVaccine = @Cur_MaVaccine AND MaGoi = @MaGoiDK;
                 END
             END
-
             FETCH NEXT FROM cur_CheckGoi INTO @Cur_MaVaccine;
         END
         CLOSE cur_CheckGoi;
         DEALLOCATE cur_CheckGoi;
 
-        -- ---------------------------------------------------------
-        -- BƯỚC B: HOÀN TRẢ KHO 
-        -- ---------------------------------------------------------
+        -- Hoàn trả kho 
         UPDATE k
         SET k.SoLuongTon = k.SoLuongTon + 1
         FROM TON_KHO k
         INNER JOIN CT_TIEM_VC c ON k.MaMatHang = c.MaVaccine
         WHERE c.MaPhieu = @MaPhieu AND k.MaCN = @MaCN;
 
-        -- ---------------------------------------------------------
-        -- BƯỚC C: XÓA DỮ LIỆU CHI TIẾT
-        -- ---------------------------------------------------------
-        -- 1. Xóa chi tiết tiêm
+        -- Xóa dữ liệu chi tiết
         DELETE FROM CT_TIEM_VC WHERE MaPhieu = @MaPhieu;
-
-        -- 2. Xóa đăng ký gói 
         DELETE FROM DANG_KI_GOI_TIEM WHERE MaPhieu = @MaPhieu;
-
-        -- 3. Xóa chi tiết khám 
         DELETE FROM PHIEU_KHAM_BENH WHERE MaPhieu = @MaPhieu;
         DELETE FROM PHIEU_TIEM_VACCINE WHERE MaPhieu = @MaPhieu;
 
-        -- ---------------------------------------------------------
-        -- BƯỚC D: CẬP NHẬT TRẠNG THÁI PHIẾU
-        -- ---------------------------------------------------------
+        -- Cập nhật trạng thái phiếu
         UPDATE PHIEU_DICH_VU
         SET TrangThai = 'DH' -- Đã Hủy
         WHERE MaPhieu = @MaPhieu;
 
         COMMIT TRANSACTION;
-        PRINT N'Hủy lịch hẹn thành công. Đã hoàn kho và cập nhật lại gói tiêm (nếu có).';
+        -- PRINT N'Hủy lịch hẹn thành công.';
 
     END TRY
     BEGIN CATCH
         IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
         
-        -- Dọn dẹp cursor nếu lỗi xảy ra giữa chừng
         IF CURSOR_STATUS('global','cur_CheckGoi') >= -1
         BEGIN
             CLOSE cur_CheckGoi;
@@ -965,7 +950,6 @@ BEGIN
     END CATCH
 END;
 GO
-
 -- 7. Phiếu tự động hủy khi quá giờ hẹn 120ph mà phiếu chưa được check in
 CREATE OR ALTER PROCEDURE sp_TuDongHuyLichHen
 AS
@@ -1406,6 +1390,7 @@ BEGIN
     PRINT N'Đánh giá sản phẩm thành công!';
 END;
 GO
+
 
 
 
