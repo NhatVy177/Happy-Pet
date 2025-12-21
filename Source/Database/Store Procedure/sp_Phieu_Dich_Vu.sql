@@ -24,14 +24,14 @@
 USE HAPPYPET
 GO
 
--- 1. Khách hàng đặt lịch hẹn qua web
+-- Dat Lich hen
 CREATE OR ALTER PROC sp_DatLichHen
     @MaKH NCHAR(10),
     @MaTC NCHAR(10), 
     @MaCN NCHAR(10),
     @LoaiPhieu VARCHAR(2), 
     @NgayHen DATE,
-    @GioHen TIME,           
+    @GioHen TIME,            
     @TrieuChung NVARCHAR(200) = NULL 
 AS
 BEGIN
@@ -39,7 +39,7 @@ BEGIN
     SET XACT_ABORT ON;
     
     -- =============================================
-    -- 1. VALIDATION CƠ BẢN
+    -- 1. VALIDATION CƠ BẢN (GIỮ NGUYÊN)
     -- =============================================
     IF @LoaiPhieu NOT IN ('KB', 'TV')
     BEGIN
@@ -53,15 +53,12 @@ BEGIN
         RETURN;
     END
 
-    -- KIỂM TRA QUYỀN SỞ HỮU THÚ CƯNG
-    -- Chỉ cho phép đặt nếu MaTC tồn tại và thuộc về MaKH đang đặt
     IF NOT EXISTS (SELECT 1 FROM THU_CUNG WHERE MaTC = @MaTC AND MaKH = @MaKH)
     BEGIN
         RAISERROR(N'Lỗi: Thú cưng không tồn tại hoặc không thuộc về khách hàng này!', 16, 1);
         RETURN;
     END
 
-    -- Check thời gian (Không được đặt quá khứ)
     DECLARE @ThoiGianHen DATETIME = CAST(@NgayHen AS DATETIME) + CAST(@GioHen AS DATETIME);
     IF @ThoiGianHen < GETDATE()
     BEGIN
@@ -80,56 +77,77 @@ BEGIN
         RETURN;
     END
 
-    -- 3. KIỂM TRA DỊCH VỤ TẠI CHI NHÁNH
-    -- 'DV01' là Khám bệnh
-    IF @LoaiPhieu = 'KB' AND NOT EXISTS (
-        SELECT 1 
-        FROM DV_CN 
-        WHERE MaCN = @MaCN AND MaLoaiDV = (SELECT MaLoaiDV FROM LOAI_DICH_VU WHERE MaLoaiDV='DV01')
-    )
+    -- 3. CHECK DỊCH VỤ
+    IF @LoaiPhieu = 'KB' AND NOT EXISTS (SELECT 1 FROM DV_CN WHERE MaCN = @MaCN AND MaLoaiDV = 'DV01') -- Sửa cứng mã DV01 cho gọn
     BEGIN
         RAISERROR(N'Lỗi: Chi nhánh này không cung cấp dịch vụ Khám bệnh!', 16, 1);
         RETURN;
     END
-
-    -- 'DV02' là Tiêm vaccine
-    IF @LoaiPhieu = 'TV' AND NOT EXISTS (
-        SELECT 1 
-        FROM DV_CN 
-        WHERE MaCN = @MaCN AND MaLoaiDV = (SELECT MaLoaiDV FROM LOAI_DICH_VU WHERE MaLoaiDV ='DV02')
-    )
+    IF @LoaiPhieu = 'TV' AND NOT EXISTS (SELECT 1 FROM DV_CN WHERE MaCN = @MaCN AND MaLoaiDV = 'DV02')
     BEGIN
         RAISERROR(N'Lỗi: Chi nhánh này không cung cấp dịch vụ Tiêm vaccine!', 16, 1);
         RETURN;
     END
 
+    -- =============================================
+    -- 4. KIỂM TRA QUÁ TẢI (Dùng bảng PHAN_CONG_CN)
+    -- =============================================
+    DECLARE @TongSoBacSi INT;
+    DECLARE @SoPhieuDaDat INT;
 
+    -- A. Đếm số bác sĩ được phân công (FIX LỖI CHÍNH TẢ Ở ĐÂY)
+    SELECT @TongSoBacSi = COUNT(*)
+    FROM PHAN_CONG_CN PC
+    JOIN NHAN_VIEN NV ON PC.MaNV = NV.MaNV
+    WHERE PC.MaCN = @MaCN
+      AND @NgayHen BETWEEN PC.NgayBD AND PC.NgayKT -- Kiểm tra còn hạn phân công
+      AND NV.Chucvu LIKE N'%Bác sĩ%'; -- 🔥 QUAN TRỌNG: Dùng LIKE để bắt "Bác sĩ thú y"
+
+    -- Nếu ngày đó không có bác sĩ nào -> Báo lỗi
+    IF @TongSoBacSi IS NULL OR @TongSoBacSi = 0
+    BEGIN
+        -- Nếu là tiêm vaccine thì có thể châm chước (nếu bà muốn), còn khám bệnh thì chặn
+        RAISERROR(N'Lỗi: Ngày này chi nhánh chưa có lịch phân công bác sĩ, vui lòng liên hệ hotline!', 16, 1);
+        RETURN;
+    END
+
+    -- B. Đếm số phiếu đã đặt
+    SELECT @SoPhieuDaDat = COUNT(*)
+    FROM PHIEU_DICH_VU
+    WHERE MaCN = @MaCN
+      AND TG_ThucHienDV = @ThoiGianHen
+      AND TrangThai IN ('DD', 'DTH');
+
+    -- C. So sánh (Giả sử 1 bác sĩ chỉ tiếp 1 khách cùng lúc)
+    IF @SoPhieuDaDat >= @TongSoBacSi
+    BEGIN
+        RAISERROR(N'Lỗi: Khung giờ này đã hết suất (Full slot), vui lòng chọn giờ khác!', 16, 1);
+        RETURN;
+    END
+
+    -- =============================================
+    -- 5. INSERT DỮ LIỆU
+    -- =============================================
     BEGIN TRANSACTION;
     BEGIN TRY
-        -- 4. TẠO MÃ PHIẾU TỰ ĐỘNG (An toàn với Locking)
         DECLARE @MaPhieu NCHAR(10);
         DECLARE @HauTo INT;
         
-        -- Thêm (UPDLOCK, HOLDLOCK) để tránh 2 người cùng lấy 1 số
         SELECT @HauTo = ISNULL(MAX(CAST(RIGHT(MaPhieu, 7) AS INT)), 0)
         FROM PHIEU_DICH_VU WITH (UPDLOCK, HOLDLOCK)
         WHERE LEFT(MaPhieu, 1) = 'P' AND ISNUMERIC(RIGHT(MaPhieu, 7)) = 1;
 
         SET @MaPhieu = 'P' + RIGHT('0000000' + CAST(@HauTo + 1 AS VARCHAR(7)), 7); 
 
-        -- Vòng lặp while kiểm tra mã phiếu mới sinh có trùng với mã cũ không (Double check)
         WHILE EXISTS (SELECT 1 FROM PHIEU_DICH_VU WHERE MaPhieu = @MaPhieu)
         BEGIN
             SET @HauTo = @HauTo + 1;
             SET @MaPhieu = 'P' + RIGHT('0000000' + CAST(@HauTo AS VARCHAR(7)), 7);
         END
 
-        -- 5. INSERT DỮ LIỆU
-        -- Insert Bảng Cha
         INSERT INTO PHIEU_DICH_VU (MaPhieu, TG_ThucHienDV, TG_LapPhieu, TrangThai, LoaiPhieu, MaCN, MaNV, MaKH)
         VALUES (@MaPhieu, @ThoiGianHen, GETDATE(), 'DD', @LoaiPhieu, @MaCN, NULL, @MaKH);
         
-        -- Insert Bảng Con
         IF @LoaiPhieu = 'KB'
         BEGIN
             INSERT INTO PHIEU_KHAM_BENH (MaPhieu, MaTC, TrieuChung, ChanDoan, NgayHenTaiKham)
@@ -1388,6 +1406,7 @@ BEGIN
     PRINT N'Đánh giá sản phẩm thành công!';
 END;
 GO
+
 
 
 
