@@ -13,9 +13,6 @@
 -- 11 sp_XemDanhSachThuCung : Liệt kê tất cả thú cưng của khách hàng, có tính toán thêm tuổi (năm/tháng).
 -- 15 sp_XoaThuCung : Xóa thú cưng khỏi hệ thống (Chỉ áp dụng nếu thú cưng đó chưa phát sinh lịch sử khám/tiêm).
 
--- THÊM
--- 16. Tra cứu lịch làm việc bác sĩ
-
 -- Phân hệ Khách hàng (Tra cứu & Chung)
 -- 12 sp_TraCuuSanPham : Tìm kiếm sản phẩm theo tên hoặc loại, hiển thị tình trạng còn hàng/hết hàng.
 -- 14 sp_XemDanhSachChiNhanh : Tra cứu thông tin chi nhánh, giờ làm việc và trạng thái đóng/mở cửa thời gian thực.
@@ -798,31 +795,4 @@ BEGIN
 END;
 GO
 
--- 16. Tra Cứu lịch làm việc bác sĩ
-
-CREATE OR ALTER PROC sp_TraCuuLichBacSi
-    @MaCN NCHAR(10) = NULL
-AS
-BEGIN
-    SET NOCOUNT ON;
-
-    SELECT 
-        ND.HoTen AS TenBacSi,      
-        CN.TenCN,
-        CN.DiaChi,
-        
-        -- Giờ làm việc của bác sĩ = Giờ mở cửa chi nhánh
-        LEFT(CAST(CN.Giomocua AS VARCHAR), 5) AS GioBatDau,
-        LEFT(CAST(CN.Giodongcua AS VARCHAR), 5) AS GioKetThuc,
-        
-        N'Hàng ngày' AS LichLamViec -- Vì gắn cứng với chi nhánh nên làm việc hàng ngày
-    FROM NHAN_VIEN NV
-    JOIN [USER] ND ON NV.MaNV = ND.MaUser 
-    JOIN CHI_NHANH CN ON NV.MaCN = CN.MaCN
-    WHERE 
-        NV.Chucvu LIKE N'%Bác sĩ%' -- Lọc lấy bác sĩ
-        AND (@MaCN IS NULL OR NV.MaCN = @MaCN)
-    ORDER BY CN.TenCN;
-END;
-GO
 
