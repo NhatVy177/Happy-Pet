@@ -1,24 +1,25 @@
 -- Thông tin các SP --
 -- Phân hệ khách hàng
--- 1	sp_DatLichHen	Đặt lịch hẹn khám bệnh (KB) hoặc tiêm vaccine (TV).
--- 2.1	sp_App_ChonGoiTiem	Khách tự chọn đăng ký gói tiêm mới khi đặt lịch.
--- 2.2	sp_App_ChonVaccineLe	Chọn tiêm lẻ hoặc sử dụng mũi tiêm có sẵn trong gói.
--- 2.3a	sp_App_XoaGoiTiem	Hủy/Xóa gói tiêm đã chọn trong lịch hẹn.
--- 2.3b	sp_App_XoaVaccineLe	Hủy/Xóa vaccine lẻ đã chọn trong lịch hẹn.
--- 5	sp_HuyLichHen	Khách chủ động hủy lịch hẹn đã đặt (khi chưa check-in).
--- 9	sp_DanhGiaDichVu	Gửi đánh giá sau khi hoàn tất dịch vụ tại cửa hàng.
--- 10	sp_DanhGiaSanPham	Gửi đánh giá cho từng sản phẩm/mặt hàng đã mua.
+-- 1	sp_DatLichHen: Đặt lịch hẹn khám bệnh (KB) hoặc tiêm vaccine (TV).
+-- 2.1	sp_App_ChonGoiTiem:	Khách tự chọn đăng ký gói tiêm mới khi đặt lịch.
+-- 2.2	sp_App_ChonVaccineLe: Chọn tiêm lẻ hoặc sử dụng mũi tiêm có sẵn trong gói.
+-- 2.3	sp_App_XoaGoiTiem: Hủy/Xóa gói tiêm đã chọn trong lịch hẹn.
+-- 2.4	sp_App_XoaVaccineLe: Hủy/Xóa vaccine lẻ đã chọn trong lịch hẹn.
+-- 3    sp_XemLichBacSi: Khách hàng xem lịch bác sĩ tại một chi nhánh.
+-- 6	sp_HuyLichHen: Khách chủ động hủy lịch hẹn đã đặt (khi chưa check-in).
+-- 10	sp_DanhGiaDichVu: Gửi đánh giá sau khi hoàn tất dịch vụ tại cửa hàng.
+-- 11	sp_DanhGiaSanPham: Gửi đánh giá cho từng sản phẩm/mặt hàng đã mua.
 
 -- Phân hệ Tiếp tân / Bán hàng
--- 3 sp_TaoPhieuTrucTiep : Tạo phiếu dịch vụ cho khách vãng lai tại cửa hàng.
--- 4 sp_CheckInKhachHang : Tiếp nhận khách đã đặt lịch, gán bác sĩ phụ trách.
--- 8 sp_XuatHoaDonTrucTiep : Tính toán tổng tiền, áp dụng ưu đãi và xuất hóa đơn.
+-- 4 sp_TaoPhieuTrucTiep: Tạo phiếu dịch vụ cho khách vãng lai tại cửa hàng.
+-- 5 sp_CheckInKhachHang: Tiếp nhận khách đã đặt lịch, gán bác sĩ phụ trách.
+-- 9 sp_XuatHoaDonTrucTiep: Tính toán tổng tiền, áp dụng ưu đãi và xuất hóa đơn.
 
 -- Phân hệ Bác sĩ thú y
--- 7 sp_HoanTatDichVu : Xác nhận hoàn tất chuyên môn để chuyển sang thanh toán.
+-- 8 sp_HoanTatDichVu: Xác nhận hoàn tất chuyên môn để chuyển sang thanh toán.
 
 -- Phân hệ Quản lý / Hệ thống (Admin)
--- 6 sp_TuDongHuyLichHen : Hệ thống tự động hủy các phiếu quá giờ hẹn 120 phút.
+-- 7 sp_TuDongHuyLichHen: Hệ thống tự động hủy các phiếu quá giờ hẹn 120 phút.
 
 USE HAPPYPET
 GO
@@ -420,7 +421,7 @@ BEGIN
 END;
 GO
 
--- 2.3 Xóa VC
+-- 2.4 Xóa VC
 CREATE OR ALTER PROC sp_App_XoaVaccineLe
     @MaPhieu NCHAR(10),
     @MaKH NCHAR(10),
@@ -1387,5 +1388,6 @@ BEGIN
     PRINT N'Đánh giá sản phẩm thành công!';
 END;
 GO
+
 
 
