@@ -16,9 +16,9 @@ GO
 CREATE OR ALTER PROC sp_KhoiTaoDonHangOnline
     @MaKhachHang VARCHAR(10),
     @MaChiNhanh VARCHAR(10),
-    @DiaChiGiaoHang NVARCHAR(100),
+    @DiaChiGiaoHang NVARCHAR(200),
     @HinhThucThanhToan NVARCHAR(20),
-    @NgayMuonNhan DATE
+    @NgayMuonNhan DATETIMEOFFSET
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -26,13 +26,18 @@ BEGIN
 
     BEGIN TRANSACTION;
     BEGIN TRY
-        -- =============================================
-        -- 1. TÍNH PHÍ SHIP & VALIDATE NGÀY
-        -- =============================================
-        DECLARE @PhiGiaoHang DECIMAL(18, 2);
-        DECLARE @SoNgayCho INT;
+        -- Validate: require at least 24 hours (use seconds + small tolerance to avoid rounding issues)
+        DECLARE @SecondsDiff INT = DATEDIFF(SECOND, SYSUTCDATETIME(), SWITCHOFFSET(@NgayMuonNhan, '+00:00'));
+        IF @SecondsDiff < (24 * 60 * 60 - 30)  -- allow 30s tolerance
+        BEGIN
+            RAISERROR(N'Lỗi: Ngày nhận hàng phải cách hiện tại ít nhất 24 giờ.', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
 
-        SET @SoNgayCho = DATEDIFF(DAY, CAST(GETDATE() AS DATE), @NgayMuonNhan);
+        -- Tính số ngày theo ngày calendar để quyết định phí
+        DECLARE @SoNgayCho INT;
+        SET @SoNgayCho = DATEDIFF(DAY, CAST(SYSUTCDATETIME() AT TIME ZONE 'UTC' AS DATE), CAST(SWITCHOFFSET(@NgayMuonNhan, '+00:00') AS DATE));
 
         IF @SoNgayCho < 1
         BEGIN
@@ -41,76 +46,54 @@ BEGIN
              RETURN;
         END
 
+        DECLARE @PhiGiaoHang DECIMAL(18,2);
         IF @SoNgayCho = 1 SET @PhiGiaoHang = 35000;
         ELSE IF @SoNgayCho = 2 SET @PhiGiaoHang = 25000;
         ELSE SET @PhiGiaoHang = 15000;
 
-        -- =============================================
-        -- 2. KIỂM TRA LOGIC ĐỊA LÝ (Nội thành)
-        -- =============================================
-        DECLARE @DiaChiChiNhanh NVARCHAR(100);
-        SELECT @DiaChiChiNhanh = DiaChi FROM CHI_NHANH WHERE MaCN = @MaChiNhanh;
+        -- KIỂM TRA ĐỊA LÝ
+        DECLARE @DiaChiChiNhanh NVARCHAR(200) = '';
+        SELECT @DiaChiChiNhanh = ISNULL(DiaChi, N'') FROM CHI_NHANH WHERE MaCN = @MaChiNhanh;
 
         DECLARE @KhuVucChiNhanh NVARCHAR(50) = N'';
+        IF @DiaChiChiNhanh COLLATE Latin1_General_CI_AI LIKE N'%Hồ Chí Minh%' COLLATE Latin1_General_CI_AI SET @KhuVucChiNhanh = N'Hồ Chí Minh';
+        ELSE IF @DiaChiChiNhanh COLLATE Latin1_General_CI_AI LIKE N'%Cần Thơ%' COLLATE Latin1_General_CI_AI SET @KhuVucChiNhanh = N'Cần Thơ';
+        ELSE IF @DiaChiChiNhanh COLLATE Latin1_General_CI_AI LIKE N'%Hà Nội%' COLLATE Latin1_General_CI_AI SET @KhuVucChiNhanh = N'Hà Nội';
+        ELSE IF @DiaChiChiNhanh COLLATE Latin1_General_CI_AI LIKE N'%Đà Nẵng%' COLLATE Latin1_General_CI_AI SET @KhuVucChiNhanh = N'Đà Nẵng';
+        ELSE IF @DiaChiChiNhanh COLLATE Latin1_General_CI_AI LIKE N'%Bình Dương%' COLLATE Latin1_General_CI_AI SET @KhuVucChiNhanh = N'Bình Dương';
 
-        IF @DiaChiChiNhanh LIKE N'%Hồ Chí Minh%' SET @KhuVucChiNhanh = N'Hồ Chí Minh';
-        ELSE IF @DiaChiChiNhanh LIKE N'%Cần Thơ%' SET @KhuVucChiNhanh = N'Cần Thơ';
-        ELSE IF @DiaChiChiNhanh LIKE N'%Hà Nội%' SET @KhuVucChiNhanh = N'Hà Nội';
-        ELSE IF @DiaChiChiNhanh LIKE N'%Đà Nẵng%' SET @KhuVucChiNhanh = N'Đà Nẵng';
-        ELSE IF @DiaChiChiNhanh LIKE N'%Bình Dương%' SET @KhuVucChiNhanh = N'Bình Dương';
-        
-        IF @KhuVucChiNhanh = N'' OR @DiaChiGiaoHang NOT LIKE N'%' + @KhuVucChiNhanh + N'%'
+        IF @KhuVucChiNhanh = N'' OR (@DiaChiGiaoHang COLLATE Latin1_General_CI_AI NOT LIKE N'%' + @KhuVucChiNhanh + N'%' COLLATE Latin1_General_CI_AI)
         BEGIN
             RAISERROR(N'Lỗi: Chi nhánh chỉ giao nội thành cùng khu vực.', 16, 1);
             ROLLBACK TRANSACTION;
             RETURN;
         END
 
-        -- =============================================
-        -- 3. SINH MÃ TỰ ĐỘNG (FORMAT: Pxxxxxxx)
-        -- =============================================
+        -- SINH MÃ PHIẾU
         DECLARE @MaxMaPhieu VARCHAR(10);
         DECLARE @NextID INT;
         DECLARE @MaPhieuMoi NCHAR(10);
 
-        -- Lấy mã phiếu lớn nhất hiện tại (có dạng P...)
-        SELECT @MaxMaPhieu = MAX(MaPhieu) 
-        FROM PHIEU_DICH_VU 
-        WHERE MaPhieu LIKE 'P%';
+        SELECT @MaxMaPhieu = MAX(MaPhieu) FROM PHIEU_DICH_VU WHERE MaPhieu LIKE 'P%';
 
         IF @MaxMaPhieu IS NULL
-        BEGIN
-            -- Nếu chưa có dữ liệu thì bắt đầu từ 1
             SET @NextID = 1;
-        END
         ELSE
-        BEGIN
-            -- Cắt bỏ chữ 'P', lấy phần số và cộng 1
             SET @NextID = CAST(SUBSTRING(@MaxMaPhieu, 2, 7) AS INT) + 1;
-        END
 
-        -- Format lại thành chuỗi P + 7 số (ví dụ: P0000018)
-        -- RIGHT('0000000' + ..., 7) dùng để thêm số 0 đằng trước
         SET @MaPhieuMoi = 'P' + RIGHT('0000000' + CAST(@NextID AS VARCHAR(7)), 7);
 
-        -- =============================================
-        -- 4. INSERT DỮ LIỆU
-        -- =============================================
-        
-        -- 4.1. Bảng PHIEU_DICH_VU
+        -- INSERT
         INSERT INTO PHIEU_DICH_VU (MaPhieu, TG_ThucHienDV, TG_LapPhieu, TrangThai, LoaiPhieu, MaCN, MaNV, MaKH)
-        VALUES (@MaPhieuMoi, CAST(@NgayMuonNhan AS DATETIME), GETDATE(), 'DD', 'MH', @MaChiNhanh, NULL, @MaKhachHang);
+        VALUES (@MaPhieuMoi, @NgayMuonNhan, GETDATE(), 'DD', 'MH', @MaChiNhanh, NULL, @MaKhachHang);
 
-        -- 4.2. Bảng HD_TRUC_TUYEN
         INSERT INTO HD_TRUC_TUYEN (MaPhieu, TongThanhTien, KhuyenMai, DiemQuyDoi, TongThanhTienSC, PhuongThucTT, DiaChiGiaoHang, PhiGiaoHang, TrangThaiHD)
         VALUES (@MaPhieuMoi, 0, 0, 0, 0, @HinhThucThanhToan, @DiaChiGiaoHang, @PhiGiaoHang, 'DTT');
 
-        -- 4.3. Bảng PHIEU_MUA_HANG
-        INSERT INTO PHIEU_MUA_HANG (MaPhieu)
-        VALUES (@MaPhieuMoi);
+        INSERT INTO PHIEU_MUA_HANG (MaPhieu) VALUES (@MaPhieuMoi);
 
         COMMIT TRANSACTION;
-        
+
         SELECT @MaPhieuMoi AS MaPhieu, @PhiGiaoHang AS PhiVanChuyen;
 
     END TRY
@@ -121,6 +104,7 @@ BEGIN
     END CATCH
 END;
 GO
+
 
 -- 2. Thêm sản phẩm vào đơn hàng (Cho NV và KH)
 CREATE OR ALTER PROC sp_ThemSanPhamVaoDon
@@ -544,3 +528,4 @@ BEGIN
 END;
 
 GO
+
