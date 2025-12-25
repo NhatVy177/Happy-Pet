@@ -99,7 +99,7 @@ BEGIN
 
     -- Kiểm tra ngày hết hạn thuốc nếu có
     DECLARE @NgayHetHan DATE;
-    SELECT @NgayHetHan = NgayHetHan FROM THUOC WHERE MaThuoc = @MaThuoc;
+    SELECT @NgayHetHan = NgayHetHan FROM MAT_HANG WHERE MaMatHang = @MaThuoc;
 
     IF @NgayHetHan < CAST(GETDATE() AS DATE)
     BEGIN
@@ -628,5 +628,6 @@ BEGIN
 END;
 
 GO
+
 
 
