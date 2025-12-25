@@ -448,38 +448,41 @@ GO
 
 -- 8. Khách hàng xem lịch sử mua sắm
 CREATE OR ALTER PROC sp_XemLichSuMuaSam
-    @MaKH NCHAR(10)
+    @MaKH VARCHAR(10)
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- 1. VALIDATION
-    IF NOT EXISTS (SELECT 1 FROM KHACH_HANG WHERE MaKH = @MaKH)
-    BEGIN
-        RAISERROR(N'Lỗi: Mã khách hàng không tồn tại!', 16, 1);
-        RETURN;
-    END
-
-    -- 2. TRUY VẤN
     SELECT 
-        PDV.MaPhieu,
-        PDV.TG_ThucHienDV AS NgayMua,
+        P.MaPhieu,
+        P.TG_LapPhieu AS NgayMua,
+        P.TrangThai,
+        ISNULL(CN.TenCN, N'Online') AS ChiNhanh,
+        CASE 
+            WHEN ISNULL(HD.TongThanhTienSC, 0) > 0 THEN HD.TongThanhTienSC
+            ELSE (SELECT SUM(ThanhTien) FROM CT_MUA_HANG WHERE MaPhieu = P.MaPhieu)
+        END AS TongThanhTienSC, 
+        
+        -- Thông tin sản phẩm
         MH.TenMatHang,
         CT.SoLuong,
-        FORMAT(CT.ThanhTien, 'N0', 'vi-VN') + ' VNĐ' AS ThanhTien, 
-        CN.TenCN AS ChiNhanhMua,
-        PDV.TrangThai
-    FROM PHIEU_DICH_VU PDV
-    JOIN CT_MUA_HANG CT ON PDV.MaPhieu = CT.MaPhieu
-    JOIN MAT_HANG MH ON CT.MaMatHang = MH.MaMatHang
-    JOIN CHI_NHANH CN ON PDV.MaCN = CN.MaCN
-    WHERE PDV.MaKH = @MaKH 
-      AND PDV.LoaiPhieu = 'MH'
-    ORDER BY PDV.TG_ThucHienDV DESC; -- Sắp xếp từ mới nhất đến cũ nhất
-END;
-GO
+        MH.DonGia,
+        CT.ThanhTien
 
-EXEC sp_XemLichSuMuaSam U000274
+    FROM PHIEU_DICH_VU P
+    LEFT JOIN CHI_NHANH CN ON P.MaCN = CN.MaCN
+    
+    -- Cắt khoảng trắng 2 đầu (RTRIM/LTRIM) để JOIN dính chặt 100%
+    LEFT JOIN HD_TRUC_TUYEN HD ON LTRIM(RTRIM(P.MaPhieu)) = LTRIM(RTRIM(HD.MaPhieu))
+    
+    JOIN CT_MUA_HANG CT ON P.MaPhieu = CT.MaPhieu
+    JOIN MAT_HANG MH ON CT.MaMatHang = MH.MaMatHang
+
+    WHERE P.MaKH = @MaKH 
+      AND P.LoaiPhieu = 'MH'
+    ORDER BY P.TG_LapPhieu DESC;
+END
+GO
 GO
 
 -- 9. Khách hàng xem lịch sử khám bệnh của một thú cưng
@@ -794,5 +797,6 @@ BEGIN
     END CATCH
 END;
 GO
+
 
 
