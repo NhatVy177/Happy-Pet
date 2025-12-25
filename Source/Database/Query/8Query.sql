@@ -66,7 +66,7 @@ GO
 
 -- TV4: Nhân viên update trạng thái của một Phiếu Dịch Vụ
 DECLARE @MaPhieuCanSua NCHAR(10) = 'P0000001';
-DECLARE @TrangThaiMoi VARCHAR(3) = 'HT';      
+DECLARE @TrangThaiMoi VARCHAR(3) = 'DHT';      
 
 UPDATE PHIEU_DICH_VU
 SET 
@@ -176,4 +176,5 @@ WHERE
     PTV.MaTC = @MaThuCung
 ORDER BY PDV.TG_ThucHienDV DESC
 GO
+
 
