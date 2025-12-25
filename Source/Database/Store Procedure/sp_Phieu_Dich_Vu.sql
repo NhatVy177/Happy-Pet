@@ -1331,7 +1331,7 @@ BEGIN
     FROM PHIEU_DICH_VU WHERE MaPhieu = @MaPhieu;
 
     -- Chỉ cho đánh giá khi đã hoàn tất (DHT) hoặc (HT)
-    IF @TrangThai = 'DHT'
+    IF @TrangThai NOT IN ('DHT') 
     BEGIN
         RAISERROR(N'Lỗi: Chỉ được đánh giá khi dịch vụ đã hoàn tất.', 16, 1);
         RETURN;
@@ -1390,6 +1390,7 @@ BEGIN
     PRINT N'Đánh giá sản phẩm thành công!';
 END;
 GO
+
 
 
 
