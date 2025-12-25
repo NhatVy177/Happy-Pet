@@ -1,7 +1,7 @@
 USE HAPPYPET_test
 GO
 
--- T1: Tra cứu danh sách thú cưng đến hẹn tái khám
+-- TV1: Tra cứu danh sách thú cưng đến hẹn tái khám
 DECLARE @TuNgay DATE = '2024-12-15';
 DECLARE @DenNgay DATE = '2024-12-21';
 DECLARE @MaCN nchar(10) = 'CN01';
@@ -26,7 +26,7 @@ ORDER BY PK.NgayHenTaiKham ASC
 GO
 
 
--- T2: Tra cứu sản phẩm (theo Tên/Loại) của một chi nhánh
+-- TV2: Tra cứu sản phẩm (theo Tên/Loại) của một chi nhánh
 DECLARE @MaCN NCHAR(10) = 'CN01';
 DECLARE @TuKhoa NVARCHAR(80) = N'Trị'; -- Nhập tên để tìm (hoặc NULL)
 DECLARE @LoaiMH VARCHAR(3) = NULL;   -- Nhập mã loại: 'T', 'VC', 'SPK' (hoặc NULL)
@@ -45,7 +45,7 @@ WHERE TK.MaCN = @MaCN
 ORDER BY TK.SoLuongTon DESC
 GO
 
--- T3: Tra cứu Phiếu dịch vụ trong ngày của một chi nhánh (Lọc theo Ngày & Mã CN)
+-- TV3: Tra cứu Phiếu dịch vụ trong ngày của một chi nhánh (Lọc theo Ngày & Mã CN)
 DECLARE @NgayTraCuu DATE = '2024-12-15';
 DECLARE @MaCN NCHAR(10) = 'CN01';
 
@@ -64,30 +64,21 @@ WHERE PDV.MaCN = @MaCN
 	AND CAST(PDV.TG_ThucHienDV AS DATE) = @NgayTraCuu
 GO
 
--- T4: Thống kê hiệu suất nhân viên
-DECLARE @Thang INT = 12;
-DECLARE @Nam INT = 2024;
-DECLARE @MaCN nchar(10) = 'CN01';
+-- TV4: Nhân viên update trạng thái của một Phiếu Dịch Vụ
+DECLARE @MaPhieuCanSua NCHAR(10) = 'P0000001';
+DECLARE @TrangThaiMoi VARCHAR(3) = 'HT';      
 
-SELECT 
-    NV.MaNV AS N'Mã NV',
-    U.HoTen AS N'Tên NV',
-    NV.ChucVu AS 'Chức vụ',
-    COUNT(PDV.MaPhieu) AS [Số phiếu đã xử lí]
-FROM NHAN_VIEN NV
-	JOIN [USER] U ON NV.MaNV = U.MaUser
--- Left Join để hiển thị cả những nhân viên không làm phiếu nào (Số phiếu = 0)
-	LEFT JOIN PHIEU_DICH_VU PDV ON NV.MaNV = PDV.MaNV 
-    AND MONTH(PDV.TG_LapPhieu) = @Thang 
-    AND YEAR(PDV.TG_LapPhieu) = @Nam
-WHERE 
-    NV.MaCN = @MaCN
-	AND NV.ChucVu <> N'Quản lý chi nhánh'
-GROUP BY NV.MaNV, U.HoTen, NV.ChucVu
-ORDER BY [Số phiếu đã xử lí] DESC
+UPDATE PHIEU_DICH_VU
+SET 
+    TrangThai = @TrangThaiMoi,
+    TG_ThucHienDV = CASE 
+                        WHEN @TrangThaiMoi = 'DTH' THEN GETDATE() 
+                        ELSE TG_ThucHienDV 
+                    END
+WHERE MaPhieu = @MaPhieuCanSua
 GO
 
--- T5: Thống kê doanh thu theo tháng của từng chi nhánh theo từng loại dịch vụ
+-- TV5: Thống kê doanh thu theo tháng của từng chi nhánh theo từng loại dịch vụ
 DECLARE @Thang INT = 12;
 DECLARE @Nam INT = 2024;
 DECLARE @MaCN nchar(10) = 'CN01';
@@ -115,7 +106,7 @@ GROUP BY
 ORDER BY SUM(HD.TongTien) DESC;
 GO
 
--- T6: Báo cáo hàng tồn kho, cảnh báo nhập hàng của một chi nhánh
+-- TV6: Báo cáo hàng tồn kho, cảnh báo nhập hàng của một chi nhánh
 DECLARE @MaCN nchar(10) = 'CN01';
 DECLARE @MucCanhBao INT = 10;
 
@@ -135,7 +126,7 @@ ORDER BY
     TK.SoLuongTon ASC
 GO
 
--- T7: Xem lịch sử khám bệnh của một thú cưng
+-- TV7: Xem lịch sử khám bệnh của một thú cưng
 DECLARE @MaThuCung nchar(10) = 'TC00022';
 
 SELECT 
@@ -160,7 +151,7 @@ WHERE
 ORDER BY PDV.TG_ThucHienDV DESC
 GO
 
--- T8: Xem lịch sử tiêm phòng của một thú cưng
+-- TV8: Xem lịch sử tiêm phòng của một thú cưng
 DECLARE @MaThuCung nchar(10) = 'TC34091';
 
 SELECT 
@@ -185,3 +176,4 @@ WHERE
     PTV.MaTC = @MaThuCung
 ORDER BY PDV.TG_ThucHienDV DESC
 GO
+
