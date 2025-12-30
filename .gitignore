@@ -1,0 +1,6 @@
+node_modules/
+happypet-frontend/node_modules/
+happypet-backend/node_modules/
+.env
+build/
+dist/
