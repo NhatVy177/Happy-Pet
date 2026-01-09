@@ -65,7 +65,8 @@ router.post('/walk-in', employeeController.createDirectAppointment);
 router.post('/walk-in-full', employeeController.createWalkInWithFullInfo);
 
 // 6. Xác nhận đã giao hàng (Nhân viên)
-router.post('/confirm-delivery', employeeController.confirmDelivery);
+router.post('/check-in-order', employeeController.checkInOrder);  // 🔥 Check-in: DD → DTH
+router.post('/confirm-delivery', employeeController.confirmDelivery);  // 🔥 Xác nhận giao: DTH → HT + cộng điểm
 
 // 6. Tự động hủy lịch hẹn quá hạn 120 phút
 router.post('/auto-huy-hen', employeeController.autoHuyLichHen);
@@ -78,9 +79,6 @@ router.get('/recheck-appointments', employeeController.getRecheckAppointments);
 
 // 9. 🔥 MỚI: Xuất hóa đơn trực tiếp (Sau khi hoàn tất dịch vụ)
 router.post('/export-invoice', employeeController.exportInvoice);
-
-// 9a. 🔥 LẤY ĐIỂM TÍCH LŨY CỦA KHÁCH HÀNG (Để hiển thị trong modal xuất hóa đơn)
-router.get('/customer-points/:maKH', employeeController.getCustomerPoints);
 
 // 10. 🔥 ĐĂNG KÝ KHÁCH HÀNG ĐƠN GIẢN (CHO BÁN HÀNG TRỰC TIẾP)
 router.post('/create-customer-simple', employeeController.createCustomerSimple);

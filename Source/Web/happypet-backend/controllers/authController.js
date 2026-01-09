@@ -40,107 +40,7 @@ exports.register = async (req, res) => {
     }
 };
 
-// 2. ĐĂNG NHẬP
-// exports.login = async (req, res) => {
-//     const { TenDangNhap, MatKhau } = req.body;
 
-//     try {
-//         const pool = await sql.connect();
-//         // 1. Gọi SP kiểm tra đăng nhập
-//         const request = pool.request().input('TenDangNhap', sql.VarChar(30), TenDangNhap);
-//         const result = await request.execute('sp_DangNhap');
-//         const user = result.recordset[0];
-
-//         // 2. Kiểm tra User tồn tại
-//         if (!user) {
-//             return res.status(401).json({ message: 'Sai tên đăng nhập!' });
-//         }
-
-//         // 3. Kiểm tra Mật khẩu (So sánh Hash)
-//         const isMatch = await bcrypt.compare(MatKhau, user.MatKhau);
-//         if (!isMatch) {
-//             return res.status(401).json({ message: 'Sai mật khẩu!' });
-//         }
-
-//         // 4. TẠO TOKEN XỊN (QUAN TRỌNG NHẤT LÀ ĐÂY) 
-//         // Mã hóa thông tin User vào trong Token
-//         const token = jwt.sign(
-//             { 
-//                 MaUser: user.MaUser, 
-//                 Role: user.LoaiUser,
-//                 MaCN: user.MaCN 
-//             }, 
-//             process.env.JWT_SECRET || 'toimuontoitetlamroichoioiii!!', // Khóa bí mật
-//             { expiresIn: '1d' } // Token sống trong 1 ngày
-//         );
-
-//         // 5. Trả về cho Frontend
-//         res.json({
-//             message: 'Đăng nhập thành công',
-//             token: token, // <--- ĐÂY LÀ TOKEN THẬT
-//             Role: user.LoaiUser,
-//             ChucVu: user.ChucVu,
-//             MaCN: user.MaCN,
-//             HoTen: user.HoTen,
-//             TenDangNhap: user.TenDangNhap
-//         });
-
-//     } catch (err) {
-//         res.status(500).json({ message: err.message });
-//     }
-// };
-
-// exports.login = async (req, res) => {
-//     const { TenDangNhap, MatKhau } = req.body;
-
-//     try {
-//         const pool = await sql.connect();
-//         // 1. Gọi SP kiểm tra đăng nhập
-//         const request = pool.request().input('TenDangNhap', sql.VarChar(30), TenDangNhap);
-//         const result = await request.execute('sp_DangNhap');
-//         const user = result.recordset[0];
-
-//         // 2. Kiểm tra User tồn tại
-//         if (!user) {
-//             return res.status(401).json({ message: 'Sai tên đăng nhập!' });
-//         }
-
-//         // 3. Kiểm tra Mật khẩu
-//         const isMatch = await bcrypt.compare(MatKhau, user.MatKhau);
-//         if (!isMatch) {
-//             return res.status(401).json({ message: 'Sai mật khẩu!' });
-//         }
-
-//         // 🔥 [QUAN TRỌNG] XÁC ĐỊNH ROLE CHUẨN 🔥
-//         // Nếu có ChucVu (Bác sĩ thú y) thì lấy ChucVu.
-//         // Nếu không (là Khách hàng) thì lấy LoaiUser (KH).
-//         const roleChuan = user.ChucVu || user.LoaiUser; 
-
-//         // 4. TẠO TOKEN
-//         const token = jwt.sign(
-//             { 
-//                 MaUser: user.MaUser, 
-//                 Role: roleChuan, // 🔥 Sửa chỗ này: Dùng roleChuan thay vì user.LoaiUser
-//                 MaCN: user.MaCN 
-//             }, 
-//             process.env.JWT_SECRET || 'toimuontoitetlamroichoioiii!!', 
-//             { expiresIn: '1d' }
-//         );
-
-//         // 5. Trả về cho Frontend
-//         res.json({
-//             message: 'Đăng nhập thành công',
-//             token: token,
-//             Role: roleChuan, // 🔥 Sửa chỗ này luôn: Trả về "Bác sĩ thú y" cho Frontend lưu
-//             ChucVu: user.ChucVu,
-//             MaCN: user.MaCN,
-//             HoTen: user.HoTen,
-//             TenDangNhap: user.TenDangNhap
-//         });
-
-//     } catch (err) {
-//         res.status(500).json({ message: err.message });
-//     }
 // };
 
 exports.login = async (req, res) => {
@@ -298,12 +198,12 @@ exports.googleLogin = async (req, res) => {
         }
 
         // Nếu có rồi -> Đăng nhập bình thường
-// --- SỬA ĐOẠN TRẢ VỀ CHO USER CŨ ---
-    const appToken = jwt.sign(
-        { MaUser: user.MaKH, Role: 'KH', MaCN: null },
-        process.env.JWT_SECRET || 'secret',
-        { expiresIn: '1d' }
-    );
+        // --- SỬA ĐOẠN TRẢ VỀ CHO USER CŨ ---
+        const appToken = jwt.sign(
+            { MaUser: user.MaKH, Role: 'KH', MaCN: null },
+            process.env.JWT_SECRET || 'toimuontoitetlamroichoioiii!!',
+            { expiresIn: '1d' }
+        );
 
     res.json({
         isNewUser: false, 
@@ -355,7 +255,7 @@ exports.completeGoogleRegister = async (req, res) => {
 
         const appToken = jwt.sign(
             { MaUser: newUser.MaKH, Role: 'KH', MaCN: null },
-            process.env.JWT_SECRET || 'secret',
+            process.env.JWT_SECRET || 'toimuontoitetlamroichoioiii!!',
             { expiresIn: '1d' }
         );
 
@@ -371,68 +271,5 @@ exports.completeGoogleRegister = async (req, res) => {
     } catch (err) {
         console.error("Lỗi tạo user Google:", err);
         res.status(500).json({ message: "Lỗi hệ thống: " + err.message });
-    }
-};
-
-exports.checkAccount = async (req, res) => {
-    const { TenDangNhap } = req.query;
-    try {
-        const pool = await sql.connect();
-        const result = await pool.request()
-            .input('Ten', sql.VarChar(30), TenDangNhap ? TenDangNhap.trim() : '')
-            .query(`
-                SELECT SDT FROM KHACH_HANG 
-                WHERE LTRIM(RTRIM(MaKH)) = (
-                    SELECT LTRIM(RTRIM(MaUser)) FROM TAI_KHOAN 
-                    WHERE LTRIM(RTRIM(TenDangNhap)) = LTRIM(RTRIM(@Ten))
-                )
-            `);
-
-        if (!result.recordset || result.recordset.length === 0) {
-            // Nếu tìm Khách hàng không có, thử tìm Nhân viên (Nếu cần)
-            return res.status(404).json({ message: 'Không tìm thấy tài khoản trong HAPPYPET!' });
-        }
-
-        const sdtFull = result.recordset[0].SDT.trim();
-        // Hiện 3 số cuối như bà muốn: *******145
-        const masked = "*******" + sdtFull.slice(-3);
-        res.json({ success: true, maskedPhone: masked });
-    } catch (err) {
-        res.status(500).json({ message: "Lỗi hệ thống: " + err.message });
-    }
-};
-
-// 2. Đổi mật khẩu (Có Hash + Confirm Pass ở Frontend)
-exports.forgotPassword = async (req, res) => {
-    const { TenDangNhap, SdtNhapVao, MatKhauMoi } = req.body;
-    try {
-        const pool = await sql.connect();
-        
-        // So khớp SĐT
-        const check = await pool.request()
-            .input('User', sql.VarChar(30), TenDangNhap.trim())
-            .query(`
-                SELECT KH.SDT FROM TAI_KHOAN TK 
-                JOIN KHACH_HANG KH ON LTRIM(RTRIM(TK.MaUser)) = LTRIM(RTRIM(KH.MaKH)) 
-                WHERE LTRIM(RTRIM(TK.TenDangNhap)) = LTRIM(RTRIM(@User))
-            `);
-
-        if (check.recordset.length === 0 || check.recordset[0].SDT.trim() !== SdtNhapVao.trim()) {
-            return res.status(400).json({ message: 'Số điện thoại không chính xác!' });
-        }
-
-        // Hash mật khẩu
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(MatKhauMoi, salt);
-
-        // Chạy Proc
-        await pool.request()
-            .input('TenDangNhap', sql.VarChar(30), TenDangNhap.trim())
-            .input('MatKhauMoi', sql.VarChar(255), hashedPassword)
-            .execute('sp_DoiMatKhau');
-
-        res.json({ success: true, message: 'Đã đổi mật khẩu và mã hóa thành công!' });
-    } catch (err) {
-        res.status(500).json({ message: err.message });
     }
 };

@@ -34,7 +34,7 @@
 //             const headers = { Authorization: `Bearer ${token}` };
 
 //             // 1. Lấy dữ liệu
-//             const resData = await axios.get('https://happy-pet-fomc.onrender.com/api/booking/vaccine-data', { headers });
+//             const resData = await axios.get('http://localhost:5000/api/booking/vaccine-data', { headers });
 //             setVaccines(resData.data.vaccines);
 //             setPackages(resData.data.packages);
             
@@ -49,7 +49,7 @@
 
 //     const fetchSelected = async (headers) => {
 //         try {
-//             const resSelected = await axios.get(`https://happy-pet-fomc.onrender.com/api/booking/selected/${MaPhieu}`, { headers });
+//             const resSelected = await axios.get(`http://localhost:5000/api/booking/selected/${MaPhieu}`, { headers });
 //             setSelectedItems(resSelected.data);
 //         } catch (error) { console.error(error); }
 //     };
@@ -57,7 +57,7 @@
 //     const handleAction = async (url, body) => {
 //         try {
 //             const token = localStorage.getItem('token');
-//             await axios.post(`https://happy-pet-fomc.onrender.com/api/booking/${url}`, 
+//             await axios.post(`http://localhost:5000/api/booking/${url}`, 
 //                 { ...body, MaPhieu }, 
 //                 { headers: { Authorization: `Bearer ${token}` } }
 //             );
@@ -244,7 +244,8 @@ const SelectVaccine = () => {
             const headers = { Authorization: `Bearer ${token}` };
 
             // 1. Lấy dữ liệu vaccines và packages TRƯỚC
-            const resData = await axios.get('https://happy-pet-fomc.onrender.com/api/booking/vaccine-data', { headers });
+            const resData = await axios.get('http://localhost:5000/api/booking/vaccine-data', { headers });
+            console.log('🔥 VACCINE DATA:', resData.data); // DEBUG
             setVaccines(resData.data.vaccines);
             setPackages(resData.data.packages);
             
@@ -268,7 +269,7 @@ const SelectVaccine = () => {
     const checkOngoingPackage = async (headers) => {
         try {
             // Lấy thông tin phiếu để biết MaTC
-            const resPhieu = await axios.get(`https://happy-pet-fomc.onrender.com/api/booking/booking-info/${MaPhieu}`, { headers });
+            const resPhieu = await axios.get(`http://localhost:5000/api/booking/booking-info/${MaPhieu}`, { headers });
             const MaTC = resPhieu.data.MaTC;
             
             if (!MaTC) {
@@ -278,7 +279,7 @@ const SelectVaccine = () => {
             }
             
             // Check gói đang tiêm
-            const resCheck = await axios.get(`https://happy-pet-fomc.onrender.com/api/booking/check-ongoing-package/${MaTC}`, { headers });
+            const resCheck = await axios.get(`http://localhost:5000/api/booking/check-ongoing-package/${MaTC}`, { headers });
             
             if (resCheck.data && resCheck.data.MaGoi) {
                 console.log('🔥 GOI DANG TIEM:', resCheck.data);
@@ -310,7 +311,7 @@ const SelectVaccine = () => {
 
     const fetchSelected = async (headers) => {
         try {
-            const resSelected = await axios.get(`https://happy-pet-fomc.onrender.com/api/booking/selected/${MaPhieu}`, { headers });
+            const resSelected = await axios.get(`http://localhost:5000/api/booking/selected/${MaPhieu}`, { headers });
             setSelectedItems(resSelected.data);
         } catch (error) { console.error(error); }
     };
@@ -318,7 +319,7 @@ const SelectVaccine = () => {
     const handleAction = async (url, body) => {
         try {
             const token = localStorage.getItem('token');
-            await axios.post(`https://happy-pet-fomc.onrender.com/api/booking/${url}`, 
+            await axios.post(`http://localhost:5000/api/booking/${url}`, 
                 { ...body, MaPhieu }, 
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -366,6 +367,9 @@ const SelectVaccine = () => {
     const filteredVaccines = vaccines.filter(v => 
         v.TenVaccine.toLowerCase().includes(searchTerm.toLowerCase())
     );
+    
+    console.log('🎯 VACCINES:', vaccines);
+    console.log('🎯 FILTERED:', filteredVaccines);
 
     return (
         <div className="booking-container" style={{maxWidth: '1000px'}}>
@@ -447,12 +451,12 @@ const SelectVaccine = () => {
                                 onClick={async () => {
                                     try {
                                         const token = localStorage.getItem('token');
-                                        const resPhieu = await axios.get(`https://happy-pet-fomc.onrender.com/api/booking/booking-info/${MaPhieu}`, {
+                                        const resPhieu = await axios.get(`http://localhost:5000/api/booking/booking-info/${MaPhieu}`, {
                                             headers: { Authorization: `Bearer ${token}` }
                                         });
                                         const MaTC = resPhieu.data.MaTC;
                                         
-                                        await axios.post('https://happy-pet-fomc.onrender.com/api/booking/add-to-ongoing-package', 
+                                        await axios.post('http://localhost:5000/api/booking/add-to-ongoing-package', 
                                             { MaPhieu, MaTC },
                                             { headers: { Authorization: `Bearer ${token}` } }
                                         );

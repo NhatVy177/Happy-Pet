@@ -152,30 +152,41 @@ exports.getPetHistory = async (req, res) => {
         const userId = req.user.id || req.user.MaUser || req.user.MaKH;
         const petId = req.params.id;
 
-        console.log(`User ${userId} xem hồ sơ thú cưng ${petId}`);
+        console.log(`📋 User ${userId} xem hồ sơ thú cưng ${petId}`);
 
         const pool = await sql.connect();
         
         // 1. Gọi SP Khám Bệnh
         const req1 = pool.request();
         req1.input('MaKH', sql.NChar(10), userId);
-        req1.input('MaTC', sql.NChar(10), petId); // Lưu ý: SP bà để NCHAR(10)
+        req1.input('MaTC', sql.NChar(10), petId);
+        console.log('🔍 Calling sp_XemLichSuKhamBenh with:', { MaKH: userId, MaTC: petId });
         const resKham = await req1.execute('sp_XemLichSuKhamBenh');
 
         // 2. Gọi SP Tiêm Phòng
         const req2 = pool.request();
         req2.input('MaKH', sql.NChar(10), userId);
         req2.input('MaTC', sql.NChar(10), petId);
+        console.log('🔍 Calling sp_XemLichSuTiemPhong with:', { MaKH: userId, MaTC: petId });
         const resTiem = await req2.execute('sp_XemLichSuTiemPhong');
 
-        // 3. Trả về cả 2 danh sách trong 1 cục JSON
+        console.log('📊 Raw Khám:', resKham.recordset.length, 'records');
+        if (resKham.recordset.length > 0) {
+            console.log('Sample khám:', resKham.recordset[0]);
+        }
+        console.log('📊 Raw Tiêm:', resTiem.recordset.length, 'records');
+        if (resTiem.recordset.length > 0) {
+            console.log('Sample tiêm:', resTiem.recordset[0]);
+        }
+
+        // Trả về tất cả dữ liệu (không filter)
         res.json({
-            khamBenh: resKham.recordset,
-            tiemPhong: resTiem.recordset
+            khamBenh: resKham.recordset || [],
+            tiemPhong: resTiem.recordset || []
         });
 
     } catch (error) {
-        console.error("Lỗi lấy lịch sử:", error);
+        console.error("❌ Lỗi lấy lịch sử:", error);
         res.status(500).json({ message: 'Lỗi lấy dữ liệu', error: error.message });
     }
 };

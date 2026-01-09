@@ -182,6 +182,51 @@ exports.createDirectAppointment = async (req, res) => {
 };
 
 // XÁC NHẬN ĐÃ GIAO HÀNG (Chỉ được nhấn đúng ngày nhận)
+// 🔥 API 1: CHECK-IN ĐƠN HÀNG (DD → DTH) - Xác nhận đơn, chuẩn bị giao
+exports.checkInOrder = async (req, res) => {
+    try {
+        const { MaPhieu } = req.body;
+        const MaNV = req.user.MaUser;
+
+        if (!MaPhieu) return res.status(400).json({ message: 'Thiếu mã phiếu!' });
+
+        const pool = await sql.connect();
+
+        const checkTicket = await pool.request()
+            .input('MP', sql.NChar(10), MaPhieu)
+            .query(`SELECT TrangThai FROM PHIEU_DICH_VU WHERE LTRIM(RTRIM(MaPhieu)) = LTRIM(RTRIM(@MP))`);
+
+        if (checkTicket.recordset.length === 0) {
+            return res.status(404).json({ message: 'Không tìm thấy phiếu!' });
+        }
+
+        const { TrangThai } = checkTicket.recordset[0];
+        
+        if (TrangThai !== 'DD') {
+            return res.status(400).json({ message: 'Chỉ check-in được đơn hàng ở trạng thái Chờ duyệt!' });
+        }
+
+        // Chuyển DD → DTH
+        await pool.request()
+            .input('MP', sql.NChar(10), MaPhieu)
+            .query(`
+                UPDATE PHIEU_DICH_VU
+                SET TrangThai = 'DTH'
+                WHERE LTRIM(RTRIM(MaPhieu)) = LTRIM(RTRIM(@MP))
+            `);
+        
+        return res.json({ 
+            success: true, 
+            message: 'Đã xác nhận đơn hàng! Đang chuẩn bị giao đến khách.' 
+        });
+
+    } catch (err) {
+        console.error("❌ Lỗi check-in:", err);
+        res.status(500).json({ message: err.message });
+    }
+};
+
+// 🔥 API 2: XÁC NHẬN ĐÃ GIAO (DTH → HT) - Hoàn tất + Cộng điểm
 exports.confirmDelivery = async (req, res) => {
     try {
         const { MaPhieu } = req.body;
@@ -191,26 +236,25 @@ exports.confirmDelivery = async (req, res) => {
 
         const pool = await sql.connect();
 
-        // Check xem hôm nay có phải ngày nhận không
-        const checkDate = await pool.request()
+        const checkTicket = await pool.request()
             .input('MP', sql.NChar(10), MaPhieu)
             .query(`
-                SELECT TG_ThucHienDV, TrangThai 
+                SELECT TG_ThucHienDV, TrangThai, LoaiPhieu
                 FROM PHIEU_DICH_VU 
                 WHERE LTRIM(RTRIM(MaPhieu)) = LTRIM(RTRIM(@MP))
             `);
 
-        if (checkDate.recordset.length === 0) {
+        if (checkTicket.recordset.length === 0) {
             return res.status(404).json({ message: 'Không tìm thấy phiếu!' });
         }
 
-        const { TG_ThucHienDV, TrangThai } = checkDate.recordset[0];
+        const { TG_ThucHienDV, TrangThai, LoaiPhieu } = checkTicket.recordset[0];
         
         if (TrangThai !== 'DTH') {
-            return res.status(400).json({ message: 'Phiếu không ở trạng thái đang giao!' });
+            return res.status(400).json({ message: 'Chỉ xác nhận được đơn hàng đang giao!' });
         }
 
-        // Check ngày
+        // Check ngày nhận
         const ngayNhan = new Date(TG_ThucHienDV);
         const homNay = new Date();
         ngayNhan.setHours(0, 0, 0, 0);
@@ -218,20 +262,43 @@ exports.confirmDelivery = async (req, res) => {
 
         if (ngayNhan.getTime() > homNay.getTime()) {
             return res.status(400).json({ 
-                message: `Chưa đến ngày giao! Ngày nhận: ${ngayNhan.toLocaleDateString('vi-VN')}` 
+                message: `Chưa đến ngày nhận hàng! Ngày mong muốn: ${ngayNhan.toLocaleDateString('vi-VN')}` 
             });
         }
 
-        // UPDATE trạng thái DHT - KHÔNG UPDATE TG_ThucHienDV vì đó là ngày muốn nhận
+        // 🔥 HOÀN TẤT ĐƠN: DTH → HT (hoặc DHT nếu là đơn có hóa đơn)
+        const newStatus = LoaiPhieu === 'MH' ? 'HT' : 'DHT';
+        
         await pool.request()
             .input('MP', sql.NChar(10), MaPhieu)
+            .input('Status', sql.NChar(10), newStatus)
             .query(`
                 UPDATE PHIEU_DICH_VU
-                SET TrangThai = 'DHT'
+                SET TrangThai = @Status,
+                    TG_ThucHienDV = GETDATE()
                 WHERE LTRIM(RTRIM(MaPhieu)) = LTRIM(RTRIM(@MP))
             `);
 
-        res.json({ success: true, message: 'Đã xác nhận giao hàng thành công!' });
+        // 🔥 CỘNG ĐIỂM CHO KHÁCH (nếu là đơn mua hàng online MH)
+        if (LoaiPhieu === 'MH') {
+            const hdResult = await pool.request()
+                .input('MP', sql.NChar(10), MaPhieu)
+                .query(`SELECT MaHoaDon FROM HOA_DON WHERE LTRIM(RTRIM(MaPhieu)) = LTRIM(RTRIM(@MP))`);
+            
+            if (hdResult.recordset.length > 0) {
+                const MaHD = hdResult.recordset[0].MaHoaDon;
+                
+                // Gọi SP cộng điểm
+                await pool.request()
+                    .input('MaHD', sql.NChar(10), MaHD)
+                    .execute('sp_CapNhatDiemSauKhiGiaoHang');
+            }
+        }
+
+        return res.json({ 
+            success: true, 
+            message: 'Đơn hàng đã hoàn tất và cộng điểm cho khách!' 
+        });
 
     } catch (err) {
         console.error("❌ Lỗi xác nhận giao:", err);
@@ -270,7 +337,26 @@ exports.getOrderDetail = async (req, res) => {
         console.log("📦 Lấy chi tiết đơn hàng:", maPhieu);
         
         const pool = await sql.connect();
-        const result = await pool.request()
+        
+        // 1. Lấy thông tin đơn hàng (HD_TRUC_TUYEN)
+        const orderInfo = await pool.request()
+            .input('MaPhieu', sql.NChar(10), maPhieu)
+            .query(`
+                SELECT 
+                    HTT.TongThanhTien,
+                    HTT.KhuyenMai,
+                    HTT.DiemQuyDoi,
+                    HTT.TongThanhTienSC,
+                    HTT.PhuongThucTT,
+                    HTT.DiaChiGiaoHang,
+                    HTT.PhiGiaoHang,
+                    HTT.TrangThaiHD
+                FROM HD_TRUC_TUYEN HTT
+                WHERE HTT.MaPhieu = @MaPhieu
+            `);
+        
+        // 2. Lấy danh sách sản phẩm
+        const products = await pool.request()
             .input('MaPhieu', sql.NChar(10), maPhieu)
             .query(`
                 SELECT 
@@ -284,8 +370,12 @@ exports.getOrderDetail = async (req, res) => {
                 WHERE CT.MaPhieu = @MaPhieu
             `);
             
-        console.log("✅ Tìm thấy:", result.recordset.length, "sản phẩm");
-        res.json(result.recordset);
+        console.log("✅ Tìm thấy:", products.recordset.length, "sản phẩm");
+        
+        res.json({
+            orderInfo: orderInfo.recordset[0] || {},
+            products: products.recordset
+        });
         
     } catch (error) {
         console.error('❌ Lỗi lấy chi tiết đơn:', error);
@@ -338,31 +428,6 @@ exports.getRecheckAppointments = async (req, res) => {
     }
 };
 
-// 🔥 MỚI: Lấy điểm tích lũy của khách hàng (Để hiển thị trong modal)
-exports.getCustomerPoints = async (req, res) => {
-    try {
-        const { maKH } = req.params;
-        
-        if (!maKH) {
-            return res.status(400).json({ message: 'Thiếu mã khách hàng!' });
-        }
-        
-        const pool = await sql.connect();
-        const result = await pool.request()
-            .input('MaKH', sql.NChar(10), maKH)
-            .query('SELECT ISNULL(TongDiemTichLuy, 0) AS TongDiemTichLuy FROM KHACH_HANG WHERE MaKH = @MaKH');
-        
-        if (result.recordset.length === 0) {
-            return res.status(404).json({ message: 'Không tìm thấy khách hàng!' });
-        }
-        
-        res.json(result.recordset[0]);
-    } catch (error) {
-        console.error('❌ Lỗi lấy điểm tích lũy:', error);
-        res.status(500).json({ message: 'Lỗi server: ' + error.message });
-    }
-};
-
 // 🔥 MỚI: Xuất hóa đơn trực tiếp (Sau khi hoàn tất dịch vụ)
 exports.exportInvoice = async (req, res) => {
     try {
@@ -395,6 +460,18 @@ exports.exportInvoice = async (req, res) => {
             .query('SELECT ISNULL(TongDiemTichLuy, 0) AS DiemHienCo FROM KHACH_HANG WHERE MaKH = @MaKH');
         
         const diemHienCo = customerInfo.recordset[0]?.DiemHienCo || 0;
+        
+        // 🔥 NẾU CHỈ LẤY THÔNG TIN (DiemMuonDung = 0), TRẢ VỀ NGAY KHÔNG CẦN XUẤT HÓA ĐƠN
+        if (DiemMuonDung === 0 && !req.body.confirm) {
+            return res.json({
+                success: true,
+                message: 'Thông tin khách hàng',
+                invoice: {
+                    DiemHienCoBanDau: diemHienCo,
+                    DiemHienCo: diemHienCo
+                }
+            });
+        }
         
         const result = await pool.request()
             .input('MaPhieu', sql.NChar(10), MaPhieu)
@@ -657,16 +734,44 @@ exports.directSale = async (req, res) => {
         
         // Bước 2: Thêm các sản phẩm vào CT_MUA_HANG
         for (const sp of sanPham) {
+            // 2.1: Kiểm tra tồn kho
+            const checkStock = await pool.request()
+                .input('MaCN', sql.NChar(10), MaCN)
+                .input('MaMatHang', sql.NChar(10), sp.MaMatHang)
+                .query(`SELECT SoLuongTon FROM TON_KHO WHERE MaCN = @MaCN AND MaMatHang = @MaMatHang`);
+            
+            const tonKho = checkStock.recordset[0]?.SoLuongTon || 0;
+            
+            if (tonKho < sp.SoLuong) {
+                return res.status(400).json({ 
+                    message: `Sản phẩm ${sp.MaMatHang} chỉ còn ${tonKho} cái, không đủ để bán ${sp.SoLuong} cái!` 
+                });
+            }
+            
+            // 2.2: INSERT vào CT_MUA_HANG
             await pool.request()
                 .input('MaPhieu', sql.NChar(10), MaPhieu)
                 .input('MaMatHang', sql.NChar(10), sp.MaMatHang)
                 .input('SoLuong', sql.Int, sp.SoLuong)
                 .query(`
-                    INSERT INTO CT_MUA_HANG (MaPhieu, MaMatHang, SoLuong)
-                    VALUES (@MaPhieu, @MaMatHang, @SoLuong)
+                    INSERT INTO CT_MUA_HANG (MaPhieu, MaMatHang, SoLuong, ThanhTien)
+                    SELECT @MaPhieu, @MaMatHang, @SoLuong, MH.DonGia * @SoLuong
+                    FROM MAT_HANG MH
+                    WHERE MH.MaMatHang = @MaMatHang
                 `);
             
-            console.log("  ✅ Thêm sản phẩm:", sp.MaMatHang, "x", sp.SoLuong);
+            // 2.3: 🔥 TRỪ TỒN KHO
+            await pool.request()
+                .input('MaCN', sql.NChar(10), MaCN)
+                .input('MaMatHang', sql.NChar(10), sp.MaMatHang)
+                .input('SoLuong', sql.Int, sp.SoLuong)
+                .query(`
+                    UPDATE TON_KHO
+                    SET SoLuongTon = SoLuongTon - @SoLuong
+                    WHERE MaCN = @MaCN AND MaMatHang = @MaMatHang
+                `);
+            
+            console.log("  ✅ Thêm sản phẩm:", sp.MaMatHang, "x", sp.SoLuong, "| Tồn kho còn:", tonKho - sp.SoLuong);
         }
         
         // Bước 2.5: Đánh dấu phiếu đã hoàn tất (TrangThai = 'DHT')

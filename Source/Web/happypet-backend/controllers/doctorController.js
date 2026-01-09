@@ -194,29 +194,6 @@ exports.ketThucTiem = async (req, res) => {
     }
 };
 
-// 10. Thêm vaccine lẻ (không theo gói)
-exports.themVaccineLe = async (req, res) => {
-    try {
-        const { MaPhieu, MaVaccine, NhacLai } = req.body;
-        const pool = await connectDB();
-        
-        const result = await pool.request()
-            .input('MaPhieu', sql.NChar(10), MaPhieu)
-            .input('MaVaccine', sql.NChar(10), MaVaccine)
-            .input('NhacLai', sql.Date, NhacLai || null)
-            .execute('sp_BacSi_ThemVaccineLe');
-            
-        res.json({ 
-            success: true, 
-            message: 'Đã thêm vaccine lẻ',
-            data: result.recordset[0]
-        });
-    } catch (error) {
-        console.error('❌ Lỗi thêm vaccine lẻ:', error.message);
-        res.status(500).json({ success: false, message: error.message });
-    }
-};
-
 // ==================== HELPER - Lấy danh sách chờ khám ====================
 exports.getWaitingList = async (req, res) => {
     try {
@@ -342,26 +319,45 @@ exports.getExamDetail = async (req, res) => {
                 WHERE CT.MaPhieu = @MaPhieu
             `);
         
-        // Lấy thông tin gói tiêm đã đăng ký (nếu có)
-        const packageResult = await pool.request()
+        // 🔥 Lấy thông tin gói tiêm đang còn hiệu lực của thú cưng (không phải của phiếu)
+        // Trước tiên lấy MaTC từ phiếu hiện tại
+        const maTCQuery = await pool.request()
             .input('MaPhieu', sql.NChar(10), maPhieu)
             .query(`
-                SELECT 
-                    DK.MaVaccine, 
-                    MH.TenMatHang AS TenVaccine,
-                    DK.MaGoi, 
-                    G.TenGoi, 
-                    G.SoMuiTuongUng, 
-                    G.ThoiHan,
-                    G.GiamGia,
-                    DK.NgayHetHan, 
-                    DK.HieuLuc, 
-                    DK.ThanhTien
-                FROM DANG_KI_GOI_TIEM DK
-                JOIN GOI_TIEM_VC G ON DK.MaGoi = G.MaGoi
-                JOIN MAT_HANG MH ON DK.MaVaccine = MH.MaMatHang
-                WHERE DK.MaPhieu = @MaPhieu
+                SELECT COALESCE(PKB.MaTC, PTV.MaTC) AS MaTC
+                FROM PHIEU_DICH_VU P
+                LEFT JOIN PHIEU_KHAM_BENH PKB ON P.MaPhieu = PKB.MaPhieu
+                LEFT JOIN PHIEU_TIEM_VACCINE PTV ON P.MaPhieu = PTV.MaPhieu
+                WHERE P.MaPhieu = @MaPhieu
             `);
+        
+        const maTC = maTCQuery.recordset[0]?.MaTC;
+        let packageResult = { recordset: [] };
+        
+        if (maTC) {
+            // Lấy gói đang còn hiệu lực của thú cưng này
+            packageResult = await pool.request()
+                .input('MaTC', sql.NChar(10), maTC)
+                .query(`
+                    SELECT TOP 1
+                        DK.MaVaccine, 
+                        MH.TenMatHang AS TenVaccine,
+                        DK.MaGoi, 
+                        G.TenGoi, 
+                        G.SoMuiTuongUng, 
+                        G.ThoiHan,
+                        G.GiamGia,
+                        DK.NgayHetHan, 
+                        DK.HieuLuc, 
+                        DK.ThanhTien
+                    FROM DANG_KI_GOI_TIEM DK
+                    JOIN GOI_TIEM_VC G ON DK.MaGoi = G.MaGoi
+                    JOIN MAT_HANG MH ON DK.MaVaccine = MH.MaMatHang
+                    JOIN PHIEU_TIEM_VACCINE PTV ON DK.MaPhieu = PTV.MaPhieu
+                    WHERE PTV.MaTC = @MaTC AND DK.HieuLuc = 1
+                    ORDER BY DK.NgayHetHan DESC
+                `);
+        }
         
         res.json({
             phieu: phieuResult.recordset[0],
@@ -382,13 +378,15 @@ exports.searchMedicinesOrVaccines = async (req, res) => {
         const maCN = req.user.MaCN || 'CN001';
         const pool = await connectDB();
         
-        // Xác định LoaiMH: 'T' = Thuốc, 'V' = Vaccine
-        const loaiMH = loai === 'Vaccine' ? 'V' : 'T';
+        // 🔥 FIX: Xác định LoaiMH theo DB schema (kiểm tra cả 'V', 'VC', 'T')
+        const loaiMH = loai === 'Vaccine' ? 'VC' : (loai === 'Thuốc' ? 'T' : '');
+        
+        console.log(`🔍 Tìm ${loai}: từ khóa="${tuKhoa}", LoaiMH="${loaiMH}", Chi nhánh=${maCN}`);
         
         const result = await pool.request()
             .input('MaCN', sql.NChar(10), maCN)
             .input('TuKhoa', sql.NVarChar, tuKhoa || '')
-            .input('LoaiMH', sql.VarChar(1), loaiMH)
+            .input('LoaiMH', sql.VarChar(2), loaiMH)
             .query(`
                 SELECT MH.MaMatHang, MH.TenMatHang, MH.DonGia, TK.SoLuongTon
                 FROM MAT_HANG MH
@@ -398,7 +396,8 @@ exports.searchMedicinesOrVaccines = async (req, res) => {
                   AND MH.TenMatHang LIKE '%' + @TuKhoa + '%'
                   AND TK.SoLuongTon > 0
             `);
-            
+        
+        console.log(`✅ Tìm thấy ${result.recordset.length} ${loai}`);
         res.json(result.recordset);
     } catch (error) {
         console.error('❌ Lỗi tìm thuốc/vaccine:', error.message);

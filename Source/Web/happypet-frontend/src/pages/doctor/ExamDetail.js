@@ -19,6 +19,7 @@ const ExamDetail = () => {
     const [selectedMedicine, setSelectedMedicine] = useState('');
     const [soLuong, setSoLuong] = useState(1);
     const [lieuLuong, setLieuLuong] = useState('');
+    const [searchMedicine, setSearchMedicine] = useState(''); // 🔥 TÌM KIẾM THUỐC
     
     const [loading, setLoading] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
@@ -33,7 +34,7 @@ const ExamDetail = () => {
     const fetchPatientInfo = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get(`https://happy-pet-fomc.onrender.com/api/doctor/patient-info/${maPhieu}`, {
+            const res = await axios.get(`http://localhost:5000/api/doctor/patient-info/${maPhieu}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setPatientInfo(res.data);
@@ -47,7 +48,7 @@ const ExamDetail = () => {
     const fetchAvailableMedicines = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get('https://happy-pet-fomc.onrender.com/api/doctor/medicines', {
+            const res = await axios.get('http://localhost:5000/api/doctor/medicines', {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setAvailableMedicines(res.data);
@@ -60,7 +61,7 @@ const ExamDetail = () => {
     const fetchPrescription = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get(`https://happy-pet-fomc.onrender.com/api/doctor/prescription/${maPhieu}`, {
+            const res = await axios.get(`http://localhost:5000/api/doctor/prescription/${maPhieu}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setPrescription(res.data);
@@ -73,7 +74,7 @@ const ExamDetail = () => {
     const fetchMedicalHistory = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get(`https://happy-pet-fomc.onrender.com/api/doctor/medical-history/${maPhieu}`, {
+            const res = await axios.get(`http://localhost:5000/api/doctor/medical-history/${maPhieu}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setMedicalHistory(res.data);
@@ -93,7 +94,7 @@ const ExamDetail = () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            await axios.post('https://happy-pet-fomc.onrender.com/api/doctor/update-diagnosis', {
+            await axios.post('http://localhost:5000/api/doctor/update-diagnosis', {
                 MaPhieu: maPhieu,
                 ChanDoan: chanDoan,
                 NgayHenTaiKham: ngayHenTaiKham || null
@@ -118,7 +119,7 @@ const ExamDetail = () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            await axios.post('https://happy-pet-fomc.onrender.com/api/doctor/add-medicine', {
+            await axios.post('http://localhost:5000/api/doctor/add-medicine', {
                 MaPhieu: maPhieu,
                 MaThuoc: selectedMedicine,
                 SoLuong: parseInt(soLuong),
@@ -156,7 +157,7 @@ const ExamDetail = () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            await axios.post('https://happy-pet-fomc.onrender.com/api/doctor/remove-medicine', {
+            await axios.post('http://localhost:5000/api/doctor/remove-medicine', {
                 MaPhieu: maPhieu,
                 MaThuoc: maThuoc
             }, {
@@ -192,7 +193,7 @@ const ExamDetail = () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            await axios.post('https://happy-pet-fomc.onrender.com/api/doctor/finish-exam', {
+            await axios.post('http://localhost:5000/api/doctor/finish-exam', {
                 MaPhieu: maPhieu
             }, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -268,18 +269,32 @@ const ExamDetail = () => {
                 <h3>💊 Đơn Thuốc</h3>
                 
                 {/* THÊM THUỐC */}
-                <div className="add-medicine-form">
+                <div className="add-medicine-form" style={{display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap'}}>
+                    <input
+                        type="text"
+                        placeholder="🔍 Tìm thuốc..."
+                        value={searchMedicine}
+                        onChange={(e) => setSearchMedicine(e.target.value)}
+                        className="input-quantity"
+                        style={{flex: '0 0 150px'}}
+                    />
                     <select
                         value={selectedMedicine}
                         onChange={(e) => setSelectedMedicine(e.target.value)}
                         className="select-medicine"
+                        style={{flex: '1', minWidth: '200px'}}
                     >
                         <option value="">-- Chọn thuốc --</option>
-                        {availableMedicines.map(med => (
-                            <option key={med.MaMatHang} value={med.MaMatHang}>
-                                {med.TenMatHang} (Tồn: {med.SoLuongTon}) - {formatMoney(med.DonGia)}
-                            </option>
-                        ))}
+                        {availableMedicines
+                            .filter(med => 
+                                med.TenMatHang.toLowerCase().includes(searchMedicine.toLowerCase())
+                            )
+                            .map(med => (
+                                <option key={med.MaMatHang} value={med.MaMatHang}>
+                                    {med.TenMatHang} (Tồn: {med.SoLuongTon}) - {formatMoney(med.DonGia)}
+                                </option>
+                            ))
+                        }
                     </select>
                     <input
                         type="number"
@@ -288,6 +303,7 @@ const ExamDetail = () => {
                         onChange={(e) => setSoLuong(e.target.value)}
                         min="1"
                         className="input-quantity"
+                        style={{width: '100px'}}
                     />
                     <input
                         type="text"
@@ -295,6 +311,7 @@ const ExamDetail = () => {
                         value={lieuLuong}
                         onChange={(e) => setLieuLuong(e.target.value)}
                         className="input-dosage"
+                        style={{flex: '1', minWidth: '180px'}}
                     />
                     <button className="btn-add" onClick={handleAddMedicine} disabled={loading}>
                         + Thêm

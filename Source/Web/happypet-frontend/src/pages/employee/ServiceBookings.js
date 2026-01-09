@@ -1,13 +1,18 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import dayjs from 'dayjs';
+// 2. 🔥 QUAN TRỌNG: THÊM DÒNG NÀY ĐỂ HẾT LỖI '... is not defined'
+import { 
+    User, Phone, Mail, Award, Search, Plus, Calendar, 
+    CheckCircle, X, FileText, CreditCard, DollarSign 
+} from 'lucide-react';
 
 // 1. Gom hết import plugin vào đây
 import isBetween from 'dayjs/plugin/isBetween';
 import isoWeek from 'dayjs/plugin/isoWeek'; 
 
-// 2. Import CSS
+// 2. Import CSS (Dùng chung style)
 import './EmployeeDashboard.css';
 
 // 3. Sau khi import xong hết mới chạy lệnh config
@@ -22,6 +27,7 @@ const ServiceBookings = () => {
     // State cho Tabs & Filter
     const [timeTab, setTimeTab] = useState('today');
     const [statusTab, setStatusTab] = useState('all');
+    const [serviceTypeTab, setServiceTypeTab] = useState('all'); // Filter mới: all, khambenh, vaccine
 
     // State cho Modal Check-in
     const [showDoctorModal, setShowDoctorModal] = useState(false);
@@ -75,26 +81,17 @@ const ServiceBookings = () => {
 
         switch (tab) {
             case 'today':
-                // Hôm nay
                 start = today;
                 end = today;
                 break;
-                
             case 'next3':
-                // 3 ngày tới (tính cả hôm nay)
                 start = today;
-                end = today.add(2, 'day'); // add 2 thôi để tổng là 3 ngày
+                end = today.add(2, 'day');
                 break;
-                
             case 'week':
-                // --- QUAN TRỌNG: Dùng isoWeek để ép Thứ 2 là đầu tuần ---
-                // Nếu hôm nay là 28/12 (CN) -> start sẽ lùi về 22/12 (T2)
                 start = today.startOf('isoWeek'); 
-                
-                // End sẽ là 28/12 (CN)
                 end = today.endOf('isoWeek');     
                 break;
-                
             default:
                 start = today;
                 end = today;
@@ -113,7 +110,7 @@ const ServiceBookings = () => {
             const token = localStorage.getItem('token');
             const { tuNgay, denNgay } = getDateRange(timeTab);
 
-            const res = await axios.get('https://happy-pet-fomc.onrender.com/api/employee/appointments', {
+            const res = await axios.get('http://localhost:5000/api/employee/appointments', {
                 headers: { Authorization: `Bearer ${token}` },
                 params: { status: 'ALL', tuNgay, denNgay }
             });
@@ -131,7 +128,7 @@ const ServiceBookings = () => {
     const fetchDoctors = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get('https://happy-pet-fomc.onrender.com/api/employee/doctors-status', {
+            const res = await axios.get('http://localhost:5000/api/employee/doctors-status', {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setDoctors(res.data);
@@ -143,34 +140,42 @@ const ServiceBookings = () => {
     useEffect(() => {
         fetchBookings();
         fetchDoctors();
-        setStatusTab('all'); // Reset filter khi đổi ngày
+        setStatusTab('all');
     }, [timeTab]);
 
-    // 3. Logic lọc Client-side
+    // 3. Logic lọc Client-side (Đã cập nhật theo giao diện mới)
     const filteredBookings = useMemo(() => {
-        if (statusTab === 'all') return bookings;
-        if (statusTab === 'HT_GROUP') return bookings.filter(o => o.TrangThai === 'DHT' || o.TrangThai === 'HT');
-        return bookings.filter(item => item.TrangThai === statusTab);
-    }, [bookings, statusTab]);
+        let filtered = bookings;
+
+        // Lọc theo loại dịch vụ (Tab mới)
+        if (serviceTypeTab === 'khambenh') {
+            filtered = filtered.filter(b => b.LoaiDichVu === 'Khám bệnh');
+        } else if (serviceTypeTab === 'vaccine') {
+            filtered = filtered.filter(b => b.LoaiDichVu === 'Tiêm vaccine');
+        }
+
+        // Lọc theo trạng thái
+        if (statusTab === 'all') return filtered;
+        if (statusTab === 'HT_GROUP') return filtered.filter(o => o.TrangThai === 'DHT' || o.TrangThai === 'HT');
+        return filtered.filter(item => item.TrangThai === statusTab);
+    }, [bookings, statusTab, serviceTypeTab]);
 
     const countStatus = (status) => {
-        if (status === 'HT_GROUP') return bookings.filter(o => o.TrangThai === 'DHT' || o.TrangThai === 'HT').length;
-        return bookings.filter(o => o.TrangThai === status).length;
+        let filtered = bookings;
+        
+        // Apply service filter first
+        if (serviceTypeTab === 'khambenh') {
+            filtered = filtered.filter(b => b.LoaiDichVu === 'Khám bệnh');
+        } else if (serviceTypeTab === 'vaccine') {
+            filtered = filtered.filter(b => b.LoaiDichVu === 'Tiêm vaccine');
+        }
+
+        if (status === 'HT_GROUP') return filtered.filter(o => o.TrangThai === 'DHT' || o.TrangThai === 'HT').length;
+        return filtered.filter(o => o.TrangThai === status).length;
     };
 
     // 4. Logic Check-in
     const handleCheckIn = (ticket) => {
-        // 🔧 COMMENT TẠM ĐỂ TEST - Bỏ check giờ làm việc
-        
-        const now = new Date();
-        const currentHour = now.getHours();
-        
-        // Ví dụ: Giờ làm việc 8h - 22h (có thể sửa lại tùy ý)
-        if (currentHour < 8 || currentHour >= 22) { 
-            Swal.fire({ icon: 'warning', title: 'Ngoài giờ làm việc!', text: 'Vui lòng check-in trong giờ hành chính.' });
-            return;
-        }
-        
         setCurrentTicket(ticket);
         setShowDoctorModal(true);
     };
@@ -186,7 +191,7 @@ const ServiceBookings = () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            await axios.put('https://happy-pet-fomc.onrender.com/api/employee/check-in', 
+            await axios.put('http://localhost:5000/api/employee/check-in', 
                 { MaPhieu: currentTicket.MaPhieu, MaBacSi: selectedDoctor },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -208,29 +213,22 @@ const ServiceBookings = () => {
         setShowInvoiceModal(true);
         setLoading(true);
         
-        // 🔥 LẤY ĐIỂM TÍCH LŨY TỪ DATABASE (qua backend)
         try {
             const token = localStorage.getItem('token');
-            const maKH = ticket.MaKH;
-            
-            if (!maKH) {
-                console.warn('Ticket không có MaKH:', ticket);
-                setInvoiceData({ DiemMuonDung: 0, PhuongThucTT: 'Tiền mặt', DiemHienCo: 0 });
-                return;
-            }
-            
-            // Gọi query trực tiếp để lấy điểm (backend sẽ query database)
-            const response = await axios.get(`https://happy-pet-fomc.onrender.com/api/employee/customer-points/${maKH}`, {
+            const response = await axios.post('http://localhost:5000/api/employee/export-invoice', {
+                MaPhieu: ticket.MaPhieu,
+                DiemMuonDung: 0, 
+                PhuongThucTT: 'Tiền mặt',
+                confirm: false 
+            }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             
-            const diemHienCo = response.data?.TongDiemTichLuy || 0;
-            console.log(`✅ Điểm tích lũy của KH ${maKH}: ${diemHienCo}`);
-            
+            const diemHienCo = response.data.invoice?.DiemHienCo || response.data.invoice?.DiemHienCoBanDau || 0;
             setInvoiceData({ DiemMuonDung: 0, PhuongThucTT: 'Tiền mặt', DiemHienCo: diemHienCo });
             setInvoiceResult(null);
         } catch (error) {
-            console.error('❌ Lỗi lấy điểm tích lũy:', error);
+            console.error('Lỗi lấy thông tin:', error);
             setInvoiceData({ DiemMuonDung: 0, PhuongThucTT: 'Tiền mặt', DiemHienCo: 0 });
         } finally {
             setLoading(false);
@@ -241,10 +239,11 @@ const ServiceBookings = () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const response = await axios.post('https://happy-pet-fomc.onrender.com/api/employee/export-invoice', {
+            const response = await axios.post('http://localhost:5000/api/employee/export-invoice', {
                 MaPhieu: currentInvoiceTicket.MaPhieu,
                 DiemMuonDung: parseInt(invoiceData.DiemMuonDung) || 0,
-                PhuongThucTT: invoiceData.PhuongThucTT
+                PhuongThucTT: invoiceData.PhuongThucTT,
+                confirm: true 
             }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -259,28 +258,20 @@ const ServiceBookings = () => {
                         <h4 style="margin-bottom: 15px; color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 8px;">
                             📋 HÓA ĐƠN #${response.data.invoice.MaHoaDon}
                         </h4>
-                        
                         <div style="margin-bottom: 20px; background: #f8f9fa; padding: 12px; border-radius: 6px;">
                             <p style="margin: 5px 0;"><strong>👤 Khách hàng:</strong> ${currentInvoiceTicket.TenKhachHang}</p>
                             <p style="margin: 5px 0;"><strong>🐾 Thú cưng:</strong> ${currentInvoiceTicket.TenThuCung || 'Chưa rõ'}</p>
                             <p style="margin: 5px 0;"><strong>🏥 Dịch vụ:</strong> ${currentInvoiceTicket.LoaiDichVu}</p>
                         </div>
-
                         <div style="margin-bottom: 15px;">
-                            <p style="margin: 8px 0; font-size: 15px;"><strong>💰 Phí dịch vụ cơ bản:</strong> <span style="color: #7f8c8d;">${response.data.invoice.TienDichVuCoBan} đ</span></p>
-                            <p style="margin: 8px 0; font-size: 15px;"><strong>📦 Tổng tiền hàng:</strong> <span style="color: #34495e;">${response.data.invoice.TongTienHang} đ</span></p>
+                            <p style="margin: 8px 0; font-size: 15px;"><strong>💰 Phí dịch vụ:</strong> <span style="color: #7f8c8d;">${response.data.invoice.TienDichVuCoBan} đ</span></p>
                             <p style="margin: 8px 0; font-size: 14px; color: #e74c3c;">🎁 Giảm hạng TV: -${response.data.invoice.GiamHangTV} đ</p>
                             <p style="margin: 8px 0; font-size: 14px; color: #e74c3c;">🎯 Giảm điểm: -${response.data.invoice.GiamDiem} đ</p>
                         </div>
-
                         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; border-radius: 8px; color: white; margin-top: 15px;">
                             <p style="margin: 0; font-size: 18px; font-weight: bold;">💳 Khách cần trả: ${response.data.invoice.KhachCanTra} đ</p>
                             <p style="margin: 8px 0 0 0; font-size: 13px; opacity: 0.9;">💎 Điểm được cộng: +${response.data.invoice.DiemDuocCong} điểm</p>
                         </div>
-
-                        <p style="margin-top: 15px; font-size: 13px; color: #7f8c8d; text-align: center;">
-                            💵 Phương thức: <strong>${invoiceData.PhuongThucTT}</strong>
-                        </p>
                     </div>
                 `,
                 width: '550px',
@@ -305,7 +296,7 @@ const ServiceBookings = () => {
         setIsSearching(true);
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get(`https://happy-pet-fomc.onrender.com/api/employee/search-customer?sdt=${phoneSearch}`, {
+            const res = await axios.get(`http://localhost:5000/api/employee/search-customer?sdt=${phoneSearch}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             
@@ -324,17 +315,14 @@ const ServiceBookings = () => {
 
         try {
             const token = localStorage.getItem('token');
-            await axios.post('https://happy-pet-fomc.onrender.com/api/employee/walk-in', walkInData, {
+            await axios.post('http://localhost:5000/api/employee/walk-in', walkInData, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             
             Swal.fire('Thành công', 'Đã tạo phiếu vãng lai!', 'success');
             setShowWalkInModal(false);
-            setWalkInData({ MaKH: '', MaTC: '', LoaiPhieu: 'KB', TrieuChung: '' });
-            setSearchResult(null);
-            setPhoneSearch('');
-            setSelectedPet(null);
-            fetchBookings(); // Refresh danh sách
+            resetWalkInModal();
+            fetchBookings();
         } catch (error) {
             Swal.fire('Lỗi', error.response?.data?.message || 'Không thể tạo phiếu!', 'error');
         }
@@ -344,7 +332,6 @@ const ServiceBookings = () => {
     const handleNewCustomerSubmit = async () => {
         const finalSDT = newCustomerForm.sdt || phoneSearch;
         
-        // Validate
         if (!newCustomerForm.hoTen || !finalSDT || !newCustomerForm.tenPet || !newCustomerForm.loaiPet) {
             return Swal.fire('Lỗi', 'Vui lòng điền đầy đủ thông tin bắt buộc!', 'warning');
         }
@@ -368,12 +355,10 @@ const ServiceBookings = () => {
             TrieuChung: newCustomerForm.trieuChung || ''
         };
         
-        console.log('🔍 Payload gửi đi:', payload);
-        
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.post('https://happy-pet-fomc.onrender.com/api/employee/walk-in-full', payload, {
+            const res = await axios.post('http://localhost:5000/api/employee/walk-in-full', payload, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             
@@ -392,7 +377,7 @@ const ServiceBookings = () => {
             });
             
             resetWalkInModal();
-            fetchBookings(); // Refresh danh sách
+            fetchBookings();
         } catch (error) {
             console.error('❌ Lỗi tạo phiếu khách mới:', error);
             Swal.fire('Lỗi', error.response?.data?.message || 'Không thể tạo phiếu!', 'error');
@@ -424,7 +409,6 @@ const ServiceBookings = () => {
 
     const formatTime = (dateStr) => dayjs(dateStr).format('HH:mm DD/MM');
 
-    // 5. Render Status Badge
     const renderStatus = (status) => {
         switch (status) {
             case 'DD': return <span className="status-badge status-waiting">🔵 Chờ Check-in</span>;
@@ -452,39 +436,112 @@ const ServiceBookings = () => {
                 </button>
             </div>
 
-            {/* TABS THỜI GIAN */}
-            <div className="tabs-container">
-                <button className={`tab-btn ${timeTab === 'today' ? 'active' : ''}`} onClick={() => setTimeTab('today')}>
-                    📅 Hôm nay
-                </button>
-                <button className={`tab-btn ${timeTab === 'next3' ? 'active' : ''}`} onClick={() => setTimeTab('next3')}>
-                    🗓️ 3 ngày tới
-                </button>
-                <button className={`tab-btn ${timeTab === 'week' ? 'active' : ''}`} onClick={() => setTimeTab('week')}>
-                    📆 Tuần này
-                </button>
+            {/* 🔥 THANH FILTER GỌN GÀNG (STYLE MỚI) */}
+            <div style={{display: 'flex', gap: '15px', marginBottom: '20px', alignItems: 'center', flexWrap: 'wrap'}}>
+                
+                {/* 1. SEGMENTED CONTROL: LOẠI DỊCH VỤ */}
+                <div style={{
+                    display: 'flex', 
+                    border: '1px solid #ddd', 
+                    borderRadius: '6px', 
+                    overflow: 'hidden',
+                    backgroundColor: '#f8f9fa'
+                }}>
+                    <button 
+                        onClick={() => setServiceTypeTab('all')}
+                        style={{
+                            border: 'none',
+                            padding: '8px 16px',
+                            cursor: 'pointer',
+                            backgroundColor: serviceTypeTab === 'all' ? '#e9ecef' : 'transparent',
+                            color: serviceTypeTab === 'all' ? '#495057' : '#6c757d',
+                            fontWeight: serviceTypeTab === 'all' ? '600' : '400',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        Tất cả
+                    </button>
+                    <div style={{width: '1px', backgroundColor: '#ddd'}}></div>
+                    <button 
+                        onClick={() => setServiceTypeTab('khambenh')}
+                        style={{
+                            border: 'none',
+                            padding: '8px 16px',
+                            cursor: 'pointer',
+                            backgroundColor: serviceTypeTab === 'khambenh' ? '#e9ecef' : 'transparent',
+                            color: serviceTypeTab === 'khambenh' ? '#495057' : '#6c757d',
+                            fontWeight: serviceTypeTab === 'khambenh' ? '600' : '400',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        🩺 Khám bệnh
+                    </button>
+                    <div style={{width: '1px', backgroundColor: '#ddd'}}></div>
+                    <button 
+                        onClick={() => setServiceTypeTab('vaccine')}
+                        style={{
+                            border: 'none',
+                            padding: '8px 16px',
+                            cursor: 'pointer',
+                            backgroundColor: serviceTypeTab === 'vaccine' ? '#e9ecef' : 'transparent',
+                            color: serviceTypeTab === 'vaccine' ? '#495057' : '#6c757d',
+                            fontWeight: serviceTypeTab === 'vaccine' ? '600' : '400',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        💉 Tiêm vaccine
+                    </button>
+                </div>
+
+                {/* 2. DROPDOWN CHO THỜI GIAN */}
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    border: '1px solid #ddd',
+                    borderRadius: '6px',
+                    padding: '6px 12px',
+                    backgroundColor: 'white'
+                }}>
+                    <span style={{marginRight: '8px', fontSize: '1rem', color: '#6c757d'}}>📅</span>
+                    <select 
+                        value={timeTab}
+                        onChange={(e) => setTimeTab(e.target.value)}
+                        style={{
+                            border: 'none',
+                            outline: 'none',
+                            color: '#495057',
+                            fontSize: '14px',
+                            cursor: 'pointer',
+                            backgroundColor: 'transparent'
+                        }}
+                    >
+                        <option value="today">Thời gian: Hôm nay</option>
+                        <option value="next3">Thời gian: 3 ngày tới</option>
+                        <option value="week">Thời gian: Tuần này</option>
+                    </select>
+                </div>
             </div>
 
-            {/* FILTER TRẠNG THÁI (Đã thêm mục ĐÃ HỦY) */}
+            {/* 3. FILTER TRẠNG THÁI */}
             <div className="tab-sub-filter">
                 <div className={`filter-pill ${statusTab === 'all' ? 'active' : ''}`} onClick={() => setStatusTab('all')}>
                     Tất cả <span className="badge-count">{bookings.length}</span>
                 </div>
                 <div className={`filter-pill ${statusTab === 'DD' ? 'active' : ''}`} onClick={() => setStatusTab('DD')}>
-                    Chờ Check-in <span className="badge-count">{countStatus('DD')}</span>
+                    🔵 Chờ Check-in <span className="badge-count">{countStatus('DD')}</span>
                 </div>
                 <div className={`filter-pill ${statusTab === 'DTH' ? 'active' : ''}`} onClick={() => setStatusTab('DTH')}>
-                    Đang thực hiện <span className="badge-count">{countStatus('DTH')}</span>
+                    💉 Đang thực hiện <span className="badge-count">{countStatus('DTH')}</span>
                 </div>
                 <div className={`filter-pill ${statusTab === 'HT_GROUP' ? 'active' : ''}`} onClick={() => setStatusTab('HT_GROUP')}>
-                    Hoàn tất <span className="badge-count">{countStatus('HT_GROUP')}</span>
+                    ✅ Hoàn tất <span className="badge-count">{countStatus('HT_GROUP')}</span>
                 </div>
                 <div className={`filter-pill ${statusTab === 'DH' ? 'active' : ''}`} onClick={() => setStatusTab('DH')}>
-                    Đã hủy <span className="badge-count">{countStatus('DH')}</span>
+                    ❌ Đã hủy <span className="badge-count">{countStatus('DH')}</span>
                 </div>
             </div>
 
-            {/* BẢNG DỮ LIỆU */}
+            {/* 4. BẢNG DỮ LIỆU */}
             <div className="table-card">
                 <table className="booking-table">
                     <thead>
@@ -525,49 +582,26 @@ const ServiceBookings = () => {
                                     <td>{item.TenBacSi ? `👨‍⚕️ ${item.TenBacSi}` : <span style={{color:'#bdc3c7', fontStyle:'italic'}}>Chưa chỉ định</span>}</td>
                                     <td>{renderStatus(item.TrangThai)}</td>
                                     <td>
-                                        {item.TrangThai === 'DD' && (() => {
-                                            const appointmentDate = dayjs(item.TG_ThucHienDV);
-                                            const today = dayjs();
-                                            const canCheckIn = appointmentDate.isSame(today, 'day') || appointmentDate.isBefore(today, 'day');
-                                            
-                                            return (
-                                                <button 
-                                                    className="btn-check-in" 
-                                                    onClick={() => handleCheckIn(item)}
-                                                    disabled={!canCheckIn}
-                                                    style={{ opacity: canCheckIn ? 1 : 0.5, cursor: canCheckIn ? 'pointer' : 'not-allowed' }}
-                                                    title={canCheckIn ? 'Click để check-in' : `Chỉ được check-in từ ngày ${appointmentDate.format('DD/MM/YYYY')}`}
-                                                >
-                                                    Check-in
-                                                </button>
-                                            );
-                                        })()}
+                                        {/* Nút Check-in */}
+                                        {item.TrangThai === 'DD' && (
+                                            <button 
+                                                className="btn-check-in" 
+                                                onClick={() => handleCheckIn(item)}
+                                                // Có thể thêm logic disable nếu chưa đến giờ hẹn
+                                            >
+                                                Check-in
+                                            </button>
+                                        )}
                                         
+                                        {/* Nút Xuất Hóa Đơn (CHỈ KHI ĐÃ HOÀN TẤT - DHT) */}
                                         {item.TrangThai === 'DHT' && (
                                             (item.MaNV_XuatHD && item.MaNV_XuatHD.trim() !== item.MaNV_BacSi?.trim()) ? (
-                                                // Đã xuất hóa đơn (MaNV khác bác sĩ = đã đổi thành nhân viên tiếp tán)
-                                                <span 
-                                                    style={{
-                                                        backgroundColor: '#27ae60',
-                                                        color: 'white',
-                                                        padding: '8px 16px',
-                                                        borderRadius: '20px',
-                                                        fontSize: '14px',
-                                                        fontWeight: '500',
-                                                        display: 'inline-flex',
-                                                        alignItems: 'center',
-                                                        gap: '6px'
-                                                    }}
-                                                >
-                                                    <i className="fas fa-check-circle"></i>
-                                                    Đã xuất hóa đơn
-                                                </span>
+                                                <span className="status-badge status-done">✅ Đã xuất HD</span>
                                             ) : (
-                                                // Chưa xuất hóa đơn (MaNV vẫn là bác sĩ)
                                                 <button 
                                                     className="btn-check-in" 
+                                                    style={{background: '#27ae60'}}
                                                     onClick={() => handleExportInvoice(item)}
-                                                    style={{ background: '#27ae60' }}
                                                 >
                                                     💳 Xuất hóa đơn
                                                 </button>
@@ -613,457 +647,621 @@ const ServiceBookings = () => {
                 </div>
             )}
 
-            {/* MODAL WALK-IN */}
+{/* MODAL WALK-IN (Tạo phiếu vãng lai) - ĐÃ SỬA CSS INLINE */}
             {showWalkInModal && (
                 <div className="modal-overlay" onClick={resetWalkInModal}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto'}}>
-                        <h3>🏥 Tạo Phiếu Vãng Lai</h3>
-                        
-                        {/* BƯỚC 1: TÌM KIẾM SĐT */}
-                        {!searchResult && (
-                            <div>
-                                <p style={{marginBottom: '15px', fontSize: '0.9rem', color: '#666'}}>
-                                    Nhập số điện thoại khách hàng để tìm kiếm
-                                </p>
-                                
-                                <div style={{display: 'flex', gap: '10px', marginBottom: '20px'}}>
-                                    <input 
-                                        type="text"
-                                        placeholder="Nhập SĐT (10 số)"
-                                        value={phoneSearch}
-                                        onChange={(e) => setPhoneSearch(e.target.value)}
-                                        maxLength="10"
-                                        style={{flex: 1, padding: '10px', border: '1px solid #ddd', borderRadius: '5px', fontSize: '16px'}}
-                                    />
-                                    <button 
-                                        onClick={handlePhoneSearch} 
-                                        disabled={isSearching}
-                                        style={{padding: '10px 20px', background: '#2196f3', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold'}}
-                                    >
-                                        {isSearching ? '⏳ Đang tìm...' : '🔍 Tìm'}
-                                    </button>
-                                </div>
-                                
-                                <button onClick={resetWalkInModal} className="btn-cancel" style={{width: '100%'}}>
-                                    Hủy
-                                </button>
-                            </div>
-                        )}
-                        
-                        {/* BƯỚC 2A: KHÁCH CŨ - CHỌN THÚ CƯNG */}
-                        {searchResult && searchResult.found && (
-                            <div>
-                                <div style={{background: '#e8f5e9', padding: '15px', borderRadius: '8px', marginBottom: '20px'}}>
-                                    <h4 style={{margin: '0 0 10px 0', color: '#2e7d32'}}>✅ Tìm thấy khách hàng</h4>
-                                    <p style={{margin: '5px 0'}}><strong>Họ tên:</strong> {searchResult.customer.HoTen}</p>
-                                    <p style={{margin: '5px 0'}}><strong>SĐT:</strong> {searchResult.customer.SDT}</p>
-                                    <p style={{margin: '5px 0'}}><strong>Email:</strong> {searchResult.customer.Email || 'N/A'}</p>
-                                    <p style={{margin: '5px 0'}}><strong>Điểm tích lũy:</strong> {searchResult.customer.TongDiemTichLuy || 0} điểm</p>
-                                </div>
-                                
-                                <h4 style={{marginBottom: '10px'}}>🐾 Chọn thú cưng cần khám/tiêm:</h4>
-                                <div style={{display: 'grid', gap: '10px', marginBottom: '20px'}}>
-                                    {searchResult.pets.map((pet) => (
-                                        <div 
-                                            key={pet.MaTC}
-                                            onClick={() => handleSelectPet(pet)}
-                                            style={{
-                                                padding: '12px',
-                                                border: selectedPet?.MaTC === pet.MaTC ? '3px solid #2196f3' : '1px solid #ddd',
-                                                borderRadius: '8px',
-                                                cursor: 'pointer',
-                                                background: selectedPet?.MaTC === pet.MaTC ? '#e3f2fd' : 'white',
-                                                transition: 'all 0.2s'
+                    <div 
+                        className="modal-content" 
+                        onClick={(e) => e.stopPropagation()} 
+                        style={{ 
+                            maxWidth: '650px', 
+                            width: '90%', 
+                            padding: '0', 
+                            borderRadius: '12px', 
+                            overflow: 'hidden', 
+                            fontFamily: '"Segoe UI", sans-serif',
+                            maxHeight: '90vh',
+                            display: 'flex',
+                            flexDirection: 'column'
+                        }}
+                    >
+                        {/* Header Modal */}
+                        <div style={{
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center', 
+                            padding: '15px 20px', 
+                            borderBottom: '1px solid #eee',
+                            background: '#fff'
+                        }}>
+                            <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#2c3e50', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <FileText size={20} /> Tạo Phiếu Vãng Lai
+                            </h3>
+                            <button 
+                                onClick={resetWalkInModal} 
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#999' }}
+                            >
+                                <X size={20}/>
+                            </button>
+                        </div>
+
+                        {/* Body Modal (Có cuộn dọc) */}
+                        <div style={{ padding: '20px', overflowY: 'auto' }}>
+                            
+                            {/* BƯỚC 1: TÌM KIẾM SĐT */}
+                            {!searchResult && (
+                                <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                                    <p style={{ marginBottom: '15px', color: '#666', fontSize: '0.95rem' }}>
+                                        Nhập số điện thoại khách hàng để bắt đầu:
+                                    </p>
+                                    
+                                    <div style={{ 
+                                        display: 'flex', 
+                                        gap: '10px', 
+                                        maxWidth: '400px', 
+                                        margin: '0 auto 20px' // Căn giữa hộp tìm kiếm
+                                    }}>
+                                        <input 
+                                            type="text" 
+                                            placeholder="Số điện thoại (10 số)..." 
+                                            value={phoneSearch} 
+                                            onChange={(e) => setPhoneSearch(e.target.value)} 
+                                            maxLength="10"
+                                            onKeyDown={(e) => e.key === 'Enter' && handlePhoneSearch()}
+                                            style={{ 
+                                                flex: 1, 
+                                                padding: '10px 15px', 
+                                                border: '1px solid #ddd', 
+                                                borderRadius: '8px', 
+                                                fontSize: '1rem',
+                                                outline: 'none'
+                                            }}
+                                        />
+                                        <button 
+                                            onClick={handlePhoneSearch} 
+                                            disabled={isSearching} 
+                                            style={{ 
+                                                padding: '0 20px', 
+                                                background: '#3498db', 
+                                                color: 'white', 
+                                                border: 'none', 
+                                                borderRadius: '8px', 
+                                                cursor: 'pointer', 
+                                                fontWeight: '600',
+                                                minWidth: '80px', // Đảm bảo nút không bị co quá nhỏ
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center'
                                             }}
                                         >
-                                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                                                <div>
-                                                    <div style={{fontWeight: 'bold', fontSize: '16px'}}>{pet.Ten}</div>
-                                                    <div style={{color: '#666', fontSize: '13px'}}>
-                                                        {pet.Loai} - {pet.Giong || 'N/A'} - {pet.GioiTinh} - 
-                                                        Sinh: {pet.NgSinh ? dayjs(pet.NgSinh).format('DD/MM/YYYY') : 'N/A'}
-                                                    </div>
-                                                    <div style={{color: pet.TinhTrangSucKhoe === 'Tốt' ? 'green' : 'orange', fontSize: '12px', marginTop: '3px'}}>
-                                                        Sức khỏe: {pet.TinhTrangSucKhoe || 'N/A'}
-                                                    </div>
-                                                </div>
-                                                {selectedPet?.MaTC === pet.MaTC && <span style={{fontSize: '24px'}}>✅</span>}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                                
-                                {/* LỊCH SỬ KHÁM */}
-                                {searchResult.history.length > 0 && (
-                                    <div style={{marginBottom: '20px'}}>
-                                        <h4 style={{marginBottom: '10px'}}>📋 Lịch sử khám gần đây:</h4>
-                                        <div style={{maxHeight: '150px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '5px', padding: '10px', fontSize: '13px'}}>
-                                            {searchResult.history.map((item, idx) => (
-                                                <div key={idx} style={{marginBottom: '8px', paddingBottom: '8px', borderBottom: idx < searchResult.history.length - 1 ? '1px solid #eee' : 'none'}}>
-                                                    <div><strong>{dayjs(item.NgayKham).format('DD/MM/YYYY HH:mm')}</strong> - {item.LoaiDV}</div>
-                                                    <div style={{color: '#666'}}>BS: {item.BacSi || 'N/A'} | Chẩn đoán: {item.ChanDoan}</div>
-                                                    <div style={{color: '#999', fontSize: '11px'}}>Trạng thái: {item.TrangThai}</div>
-                                                </div>
-                                            ))}
-                                        </div>
+                                            {isSearching ? '...' : <><Search size={18} style={{marginRight:'5px'}}/> Tìm</>}
+                                        </button>
                                     </div>
-                                )}
-                                
-                                {/* FORM DỊCH VỤ */}
-                                {selectedPet && (
-                                    <div style={{background: '#f5f5f5', padding: '15px', borderRadius: '8px'}}>
-                                        <h4 style={{marginBottom: '10px'}}>📝 Thông tin dịch vụ:</h4>
-                                        <select 
-                                            value={walkInData.LoaiPhieu}
-                                            onChange={(e) => setWalkInData({...walkInData, LoaiPhieu: e.target.value})}
-                                            style={{width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', marginBottom: '10px'}}
-                                        >
-                                            <option value="KB">Khám bệnh</option>
-                                            <option value="TV">Tiêm vaccine</option>
-                                        </select>
-                                        
-                                        {walkInData.LoaiPhieu === 'TV' && (
-                                            <div style={{padding: '12px', background: '#e3f2fd', borderRadius: '5px', marginBottom: '10px', fontSize: '14px'}}>
-                                                ℹ️ <strong>Lưu ý:</strong> Bác sĩ sẽ chọn vaccine/gói tiêm sau khi check-in
-                                            </div>
-                                        )}
-                                        
-                                        <textarea 
-                                            placeholder="Triệu chứng / Ghi chú"
-                                            value={walkInData.TrieuChung}
-                                            onChange={(e) => setWalkInData({...walkInData, TrieuChung: e.target.value})}
-                                            rows="3"
-                                            style={{width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', resize: 'vertical'}}
-                                        />
-                                    </div>
-                                )}
-                                
-                                <div style={{display: 'flex', gap: '10px', marginTop: '20px'}}>
-                                    <button onClick={resetWalkInModal} className="btn-cancel" style={{flex: 1}}>
-                                        Hủy
-                                    </button>
+                                    
                                     <button 
-                                        onClick={handleWalkInSubmit} 
-                                        disabled={!selectedPet}
-                                        className="btn-primary" 
-                                        style={{flex: 1, opacity: !selectedPet ? 0.5 : 1, cursor: !selectedPet ? 'not-allowed' : 'pointer'}}
+                                        onClick={resetWalkInModal} 
+                                        style={{ 
+                                            background: 'none', 
+                                            border: 'none', 
+                                            color: '#7f8c8d', 
+                                            cursor: 'pointer', 
+                                            textDecoration: 'underline',
+                                            fontSize: '0.9rem'
+                                        }}
                                     >
-                                        Tạo phiếu
+                                        Hủy bỏ
                                     </button>
                                 </div>
-                            </div>
-                        )}
-                        
-                        {/* BƯỚC 2B: KHÁCH MỚI - FORM ĐĂNG KÝ */}
-                        {searchResult && !searchResult.found && (
-                            <div>
-                                <div style={{background: '#fff3e0', padding: '15px', borderRadius: '8px', marginBottom: '20px', textAlign: 'center'}}>
-                                    <h4 style={{margin: '0 0 5px 0', color: '#e65100'}}>👋 Chào mừng khách hàng mới!</h4>
-                                    <p style={{margin: '0', fontSize: '14px', color: '#666'}}>
-                                        Số điện thoại <strong>{phoneSearch}</strong> chưa có trong hệ thống
-                                    </p>
-                                </div>
-                                
-                                <div style={{marginBottom: '20px'}}>
-                                    <h4 style={{marginBottom: '15px', color: '#2c3e50'}}>📋 Thông tin khách hàng</h4>
-                                    
-                                    <div style={{marginBottom: '12px'}}>
-                                        <label style={{display: 'block', marginBottom: '5px', fontWeight: '600', fontSize: '14px'}}>
-                                            👤 Họ tên <span style={{color: 'red'}}>*</span>
-                                        </label>
-                                        <input 
-                                            type="text"
-                                            placeholder="Nhập họ tên khách hàng"
-                                            value={newCustomerForm.hoTen}
-                                            onChange={(e) => setNewCustomerForm({...newCustomerForm, hoTen: e.target.value})}
-                                            style={{width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', fontSize: '15px'}}
-                                        />
+                            )}
+
+                            {/* BƯỚC 2A: KHÁCH CŨ */}
+                            {searchResult && searchResult.found && (
+                                <div>
+                                    {/* Info Banner */}
+                                    <div style={{ 
+                                        background: '#f0f9f0', 
+                                        border: '1px solid #c3e6cb', 
+                                        borderLeft: '4px solid #28a745', 
+                                        padding: '15px', 
+                                        borderRadius: '6px', 
+                                        marginBottom: '20px',
+                                        display: 'flex',
+                                        flexWrap: 'wrap',
+                                        gap: '15px',
+                                        alignItems: 'center',
+                                        fontSize: '0.9rem',
+                                        color: '#155724'
+                                    }}>
+                                        <div style={{display:'flex', alignItems:'center', gap:'5px'}}><User size={16}/> <strong>{searchResult.customer.HoTen}</strong></div>
+                                        <div style={{color:'#ccc'}}>|</div>
+                                        <div style={{display:'flex', alignItems:'center', gap:'5px'}}><Phone size={16}/> {searchResult.customer.SDT}</div>
+                                        <div style={{color:'#ccc'}}>|</div>
+                                        <div style={{display:'flex', alignItems:'center', gap:'5px'}}><Award size={16} color="#d35400"/> <strong style={{color:'#d35400'}}>{searchResult.customer.TongDiemTichLuy || 0} điểm</strong></div>
                                     </div>
+
+                                    <h4 style={{ marginBottom: '10px', fontSize: '1rem', color: '#333' }}>🐾 Chọn thú cưng:</h4>
                                     
-                                    <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px'}}>
-                                        <div>
-                                            <label style={{display: 'block', marginBottom: '5px', fontWeight: '600', fontSize: '14px'}}>
-                                                📱 Số điện thoại <span style={{color: 'red'}}>*</span>
-                                            </label>
-                                            <input 
-                                                type="text"
-                                                placeholder="Nhập SĐT (10 số)"
-                                                value={newCustomerForm.sdt || phoneSearch}
-                                                onChange={(e) => setNewCustomerForm({...newCustomerForm, sdt: e.target.value})}
-                                                maxLength="10"
-                                                style={{width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', fontSize: '15px'}}
-                                            />
-                                        </div>
-                                        
-                                        <div>
-                                            <label style={{display: 'block', marginBottom: '5px', fontWeight: '600', fontSize: '14px'}}>
-                                                ⚥ Giới tính <span style={{color: 'red'}}>*</span>
-                                            </label>
-                                            <select
-                                                value={newCustomerForm.gioiTinhUser}
-                                                onChange={(e) => setNewCustomerForm({...newCustomerForm, gioiTinhUser: e.target.value})}
-                                                style={{width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', fontSize: '15px'}}
+                                    {/* Pet Grid */}
+                                    <div style={{ 
+                                        display: 'grid', 
+                                        gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', 
+                                        gap: '15px', 
+                                        marginBottom: '20px' 
+                                    }}>
+                                        {searchResult.pets.map((pet) => (
+                                            <div 
+                                                key={pet.MaTC} 
+                                                onClick={() => handleSelectPet(pet)}
+                                                style={{ 
+                                                    padding: '12px', 
+                                                    border: selectedPet?.MaTC === pet.MaTC ? '2px solid #3498db' : '1px solid #eee', 
+                                                    borderRadius: '10px', 
+                                                    cursor: 'pointer', 
+                                                    background: selectedPet?.MaTC === pet.MaTC ? '#eaf6ff' : 'white',
+                                                    position: 'relative',
+                                                    transition: 'all 0.2s',
+                                                    display: 'flex',
+                                                    gap: '10px',
+                                                    alignItems: 'center'
+                                                }}
                                             >
-                                                <option value="Nam">Nam</option>
-                                                <option value="Nữ">Nữ</option>
-                                            </select>
+                                                <div style={{ fontSize: '1.5rem', background: '#f8f9fa', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%' }}>
+                                                    {pet.Loai === 'Mèo' ? '🐱' : '🐶'}
+                                                </div>
+                                                <div>
+                                                    <div style={{ fontWeight: 'bold', color: '#2c3e50' }}>{pet.Ten}</div>
+                                                    <div style={{ fontSize: '0.8rem', color: '#666' }}>
+                                                        {pet.Loai} - {pet.Giong || 'N/A'} {pet.NgSinh && `• ${Math.floor((new Date() - new Date(pet.NgSinh)) / (365.25 * 24 * 60 * 60 * 1000))} tuổi`}
+                                                    </div>
+                                                </div>
+                                                {selectedPet?.MaTC === pet.MaTC && (
+                                                    <div style={{ position: 'absolute', top: '10px', right: '10px', color: '#3498db' }}>
+                                                        <CheckCircle size={18} fill="#3498db" color="white"/>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Lịch Sử Khám */}
+                                    {searchResult.history && searchResult.history.length > 0 && (
+                                        <div style={{ marginBottom: '20px' }}>
+                                            <h4 style={{ marginBottom: '10px', fontSize: '1rem', color: '#333', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                                📋 Lịch sử khám gần đây
+                                            </h4>
+                                            <div style={{ 
+                                                maxHeight: '200px', 
+                                                overflowY: 'auto', 
+                                                border: '1px solid #e0e0e0', 
+                                                borderRadius: '8px', 
+                                                background: '#fafafa'
+                                            }}>
+                                                {searchResult.history.slice(0, 5).map((item, idx) => (
+                                                    <div 
+                                                        key={idx} 
+                                                        style={{ 
+                                                            padding: '12px 15px', 
+                                                            borderBottom: idx < Math.min(searchResult.history.length, 5) - 1 ? '1px solid #e8e8e8' : 'none',
+                                                            fontSize: '0.85rem'
+                                                        }}
+                                                    >
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                                                            <span style={{ fontWeight: '600', color: '#2c3e50' }}>
+                                                                {dayjs(item.NgayKham).format('DD/MM/YYYY HH:mm')}
+                                                            </span>
+                                                            <span style={{ 
+                                                                fontSize: '0.75rem', 
+                                                                padding: '2px 8px', 
+                                                                borderRadius: '12px',
+                                                                background: item.TrangThai === 'DHT' ? '#d4edda' : '#fff3cd',
+                                                                color: item.TrangThai === 'DHT' ? '#155724' : '#856404'
+                                                            }}>
+                                                                {item.TrangThai}
+                                                            </span>
+                                                        </div>
+                                                        <div style={{ color: '#555', marginBottom: '3px' }}>
+                                                            <strong>{item.LoaiDV}</strong> - BS: {item.BacSi || 'N/A'}
+                                                        </div>
+                                                        <div style={{ color: '#777', fontSize: '0.8rem' }}>
+                                                            Chẩn đoán: {item.ChanDoan || 'Chưa có'}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
-                                    
-                                    <div style={{marginBottom: '12px'}}>
-                                        <label style={{display: 'block', marginBottom: '5px', fontWeight: '600', fontSize: '14px'}}>
-                                            🏠 Địa chỉ
-                                        </label>
-                                        <input 
-                                            type="text"
-                                            placeholder="Nhập địa chỉ (tùy chọn)"
-                                            value={newCustomerForm.diaChi}
-                                            onChange={(e) => setNewCustomerForm({...newCustomerForm, diaChi: e.target.value})}
-                                            style={{width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', fontSize: '15px'}}
-                                        />
-                                    </div>
-                                </div>
-                                
-                                <div style={{borderTop: '2px dashed #ddd', paddingTop: '20px', marginBottom: '20px'}}>
-                                    <h4 style={{marginBottom: '15px', color: '#2c3e50'}}>🐾 Thông tin thú cưng</h4>
-                                    
-                                    <div style={{marginBottom: '12px'}}>
-                                        <label style={{display: 'block', marginBottom: '5px', fontWeight: '600', fontSize: '14px'}}>
-                                            🐶 Tên thú cưng <span style={{color: 'red'}}>*</span>
-                                        </label>
-                                        <input 
-                                            type="text"
-                                            placeholder="Nhập tên thú cưng"
-                                            value={newCustomerForm.tenPet}
-                                            onChange={(e) => setNewCustomerForm({...newCustomerForm, tenPet: e.target.value})}
-                                            style={{width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', fontSize: '15px'}}
-                                        />
-                                    </div>
-                                    
-                                    <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px'}}>
-                                        <div>
-                                            <label style={{display: 'block', marginBottom: '5px', fontWeight: '600', fontSize: '14px'}}>
-                                                🦴 Loại <span style={{color: 'red'}}>*</span>
-                                            </label>
-                                            <select
-                                                value={newCustomerForm.loaiPet}
-                                                onChange={(e) => setNewCustomerForm({...newCustomerForm, loaiPet: e.target.value})}
-                                                style={{width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', fontSize: '15px'}}
-                                            >
-                                                <option value="">-- Chọn loại --</option>
-                                                <option value="Chó">Chó</option>
-                                                <option value="Mèo">Mèo</option>
-                                                <option value="Khác">Khác</option>
-                                            </select>
+                                    )}
+
+                                    {/* Form Dịch Vụ */}
+                                    {selectedPet && (
+                                        <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px', border: '1px solid #eee', marginBottom: '20px' }}>
+                                            <div style={{ display: 'flex', gap: '15px', marginBottom: '10px' }}>
+                                                <div style={{ flex: 1 }}>
+                                                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '5px' }}>Dịch vụ:</label>
+                                                    <select 
+                                                        value={walkInData.LoaiPhieu} 
+                                                        onChange={(e) => setWalkInData({...walkInData, LoaiPhieu: e.target.value})}
+                                                        style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #ddd' }}
+                                                    >
+                                                        <option value="KB">🩺 Khám bệnh</option>
+                                                        <option value="TV">💉 Tiêm vaccine</option>
+                                                    </select>
+                                                </div>
+                                                <div style={{ flex: 2 }}>
+                                                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '5px' }}>Ghi chú / Triệu chứng:</label>
+                                                    <input 
+                                                        type="text" 
+                                                        placeholder="Nhập ghi chú..." 
+                                                        value={walkInData.TrieuChung} 
+                                                        onChange={(e) => setWalkInData({...walkInData, TrieuChung: e.target.value})} 
+                                                        style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
-                                        
-                                        <div>
-                                            <label style={{display: 'block', marginBottom: '5px', fontWeight: '600', fontSize: '14px'}}>
-                                                ⚥ Giới tính <span style={{color: 'red'}}>*</span>
-                                            </label>
-                                            <select
-                                                value={newCustomerForm.gioiTinhPet}
-                                                onChange={(e) => setNewCustomerForm({...newCustomerForm, gioiTinhPet: e.target.value})}
-                                                style={{width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', fontSize: '15px'}}
-                                            >
-                                                <option value="Đực">Đực</option>
-                                                <option value="Cái">Cái</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    
-                                    <div style={{marginBottom: '12px'}}>
-                                        <label style={{display: 'block', marginBottom: '5px', fontWeight: '600', fontSize: '14px'}}>
-                                            🧬 Giống
-                                        </label>
-                                        <input 
-                                            type="text"
-                                            placeholder="VD: Corgi, Munchkin..."
-                                            value={newCustomerForm.giongPet}
-                                            onChange={(e) => setNewCustomerForm({...newCustomerForm, giongPet: e.target.value})}
-                                            style={{width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', fontSize: '15px'}}
-                                        />
-                                    </div>
-                                    
-                                    <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px'}}>
-                                        <div>
-                                            <label style={{display: 'block', marginBottom: '5px', fontWeight: '600', fontSize: '14px'}}>
-                                                🎂 Ngày sinh
-                                            </label>
-                                            <input 
-                                                type="date"
-                                                value={newCustomerForm.ngaySinhPet}
-                                                onChange={(e) => setNewCustomerForm({...newCustomerForm, ngaySinhPet: e.target.value})}
-                                                max={dayjs().format('YYYY-MM-DD')}
-                                                style={{width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', fontSize: '15px'}}
-                                            />
-                                        </div>
-                                        
-                                        <div>
-                                            <label style={{display: 'block', marginBottom: '5px', fontWeight: '600', fontSize: '14px'}}>
-                                                💪 Tình trạng sức khỏe
-                                            </label>
-                                            <select
-                                                value={newCustomerForm.tinhTrangSucKhoe}
-                                                onChange={(e) => setNewCustomerForm({...newCustomerForm, tinhTrangSucKhoe: e.target.value})}
-                                                style={{width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', fontSize: '15px'}}
-                                            >
-                                                <option value="Bình thường">Bình thường</option>
-                                                <option value="Tốt">Tốt</option>
-                                                <option value="Yếu">Yếu</option>
-                                                <option value="Đang điều trị">Đang điều trị</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div style={{borderTop: '2px dashed #ddd', paddingTop: '20px', marginBottom: '20px'}}>
-                                    <h4 style={{marginBottom: '15px', color: '#2c3e50'}}>🏥 Thông tin dịch vụ</h4>
-                                    
-                                    <div style={{marginBottom: '12px'}}>
-                                        <label style={{display: 'block', marginBottom: '5px', fontWeight: '600', fontSize: '14px'}}>
-                                            📋 Loại dịch vụ <span style={{color: 'red'}}>*</span>
-                                        </label>
-                                        <select
-                                            value={newCustomerForm.loaiPhieu}
-                                            onChange={(e) => setNewCustomerForm({...newCustomerForm, loaiPhieu: e.target.value})}
-                                            style={{width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', fontSize: '15px'}}
+                                    )}
+
+                                    {/* Footer Actions */}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '15px', borderTop: '1px solid #f1f2f6' }}>
+                                        <button onClick={resetWalkInModal} style={{ padding: '10px 20px', border: '1px solid #ddd', borderRadius: '6px', background: '#fff', color: '#555', cursor: 'pointer', fontWeight: '600' }}>Hủy</button>
+                                        <button 
+                                            onClick={handleWalkInSubmit} 
+                                            disabled={!selectedPet} 
+                                            style={{ 
+                                                padding: '10px 25px', 
+                                                border: 'none', 
+                                                borderRadius: '6px', 
+                                                background: '#3498db', 
+                                                color: 'white', 
+                                                fontWeight: '600', 
+                                                cursor: !selectedPet ? 'not-allowed' : 'pointer',
+                                                opacity: !selectedPet ? 0.6 : 1
+                                            }}
                                         >
+                                            Tạo phiếu ngay
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* BƯỚC 2B: KHÁCH MỚI */}
+                            {searchResult && !searchResult.found && (
+                                <div>
+                                    <div style={{ background: '#fff3e0', padding: '15px', borderRadius: '8px', marginBottom: '20px', textAlign: 'center', border: '1px solid #ffe0b2' }}>
+                                        <div style={{ fontSize: '1.2rem', marginBottom: '5px' }}>🎉 Chào mừng khách hàng mới!</div>
+                                        <div style={{ fontSize: '0.85rem', color: '#666' }}>SĐT <strong style={{ color: '#e65100' }}>{phoneSearch}</strong> chưa có trong hệ thống</div>
+                                    </div>
+                                    
+                                    {/* Thông tin khách hàng */}
+                                    <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px', marginBottom: '15px', border: '1px solid #eee' }}>
+                                        <h4 style={{ marginBottom: '15px', fontSize: '0.95rem', color: '#2c3e50', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                            👤 Thông tin khách hàng
+                                        </h4>
+                                        <div style={{ display: 'grid', gap: '12px' }}>
+                                            <div>
+                                                <label style={{display:'flex', alignItems:'center', gap:'5px', marginBottom:'5px', fontSize:'0.85rem', fontWeight:'600', color:'#555'}}>
+                                                    👤 Họ tên <span style={{color:'red'}}>*</span>
+                                                </label>
+                                                <input type="text" placeholder="Nhập họ tên khách hàng" value={newCustomerForm.hoTen} onChange={e => setNewCustomerForm({...newCustomerForm, hoTen: e.target.value})} style={{width:'100%', padding:'10px', borderRadius:'6px', border:'1px solid #ddd', boxSizing:'border-box', fontSize:'0.9rem'}} />
+                                            </div>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                                <div>
+                                                    <label style={{display:'flex', alignItems:'center', gap:'5px', marginBottom:'5px', fontSize:'0.85rem', fontWeight:'600', color:'#555'}}>
+                                                        📱 Số điện thoại <span style={{color:'red'}}>*</span>
+                                                    </label>
+                                                    <input type="text" value={phoneSearch} disabled style={{width:'100%', padding:'10px', borderRadius:'6px', border:'1px solid #ddd', boxSizing:'border-box', background:'#f0f0f0', fontSize:'0.9rem'}} />
+                                                </div>
+                                                <div>
+                                                    <label style={{display:'flex', alignItems:'center', gap:'5px', marginBottom:'5px', fontSize:'0.85rem', fontWeight:'600', color:'#555'}}>
+                                                        ⚥ Giới tính <span style={{color:'red'}}>*</span>
+                                                    </label>
+                                                    <select value={newCustomerForm.gioiTinhUser} onChange={e => setNewCustomerForm({...newCustomerForm, gioiTinhUser: e.target.value})} style={{width:'100%', padding:'10px', borderRadius:'6px', border:'1px solid #ddd', fontSize:'0.9rem'}}>
+                                                        <option value="Nam">Nam</option>
+                                                        <option value="Nữ">Nữ</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label style={{display:'flex', alignItems:'center', gap:'5px', marginBottom:'5px', fontSize:'0.85rem', fontWeight:'600', color:'#555'}}>
+                                                    🏠 Địa chỉ
+                                                </label>
+                                                <input type="text" placeholder="Nhập địa chỉ (tùy chọn)" value={newCustomerForm.diaChi} onChange={e => setNewCustomerForm({...newCustomerForm, diaChi: e.target.value})} style={{width:'100%', padding:'10px', borderRadius:'6px', border:'1px solid #ddd', boxSizing:'border-box', fontSize:'0.9rem'}} />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Thông tin thú cưng */}
+                                    <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px', marginBottom: '15px', border: '1px solid #eee' }}>
+                                        <h4 style={{ marginBottom: '15px', fontSize: '0.95rem', color: '#2c3e50', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                            🐾 Thông tin thú cưng
+                                        </h4>
+                                        <div style={{ display: 'grid', gap: '12px' }}>
+                                            <div>
+                                                <label style={{display:'flex', alignItems:'center', gap:'5px', marginBottom:'5px', fontSize:'0.85rem', fontWeight:'600', color:'#555'}}>
+                                                    🐶 Tên thú cưng <span style={{color:'red'}}>*</span>
+                                                </label>
+                                                <input type="text" placeholder="Nhập tên thú cưng" value={newCustomerForm.tenPet} onChange={e => setNewCustomerForm({...newCustomerForm, tenPet: e.target.value})} style={{width:'100%', padding:'10px', borderRadius:'6px', border:'1px solid #ddd', boxSizing:'border-box', fontSize:'0.9rem'}} />
+                                            </div>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                                <div>
+                                                    <label style={{display:'flex', alignItems:'center', gap:'5px', marginBottom:'5px', fontSize:'0.85rem', fontWeight:'600', color:'#555'}}>
+                                                        🦴 Loại <span style={{color:'red'}}>*</span>
+                                                    </label>
+                                                    <select value={newCustomerForm.loaiPet} onChange={e => setNewCustomerForm({...newCustomerForm, loaiPet: e.target.value})} style={{width:'100%', padding:'10px', borderRadius:'6px', border:'1px solid #ddd', fontSize:'0.9rem'}}>
+                                                        <option value="">-- Chọn loại --</option>
+                                                        <option value="Chó">Chó</option>
+                                                        <option value="Mèo">Mèo</option>
+                                                        <option value="Chim">Chim</option>
+                                                        <option value="Chuột">Chuột</option>
+                                                        <option value="Gà">Gà</option>
+                                                        <option value="Khác">Khác</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label style={{display:'flex', alignItems:'center', gap:'5px', marginBottom:'5px', fontSize:'0.85rem', fontWeight:'600', color:'#555'}}>
+                                                        ⚥ Giới tính <span style={{color:'red'}}>*</span>
+                                                    </label>
+                                                    <select value={newCustomerForm.gioiTinhPet} onChange={e => setNewCustomerForm({...newCustomerForm, gioiTinhPet: e.target.value})} style={{width:'100%', padding:'10px', borderRadius:'6px', border:'1px solid #ddd', fontSize:'0.9rem'}}>
+                                                        <option value="Đực">Đực</option>
+                                                        <option value="Cái">Cái</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label style={{display:'flex', alignItems:'center', gap:'5px', marginBottom:'5px', fontSize:'0.85rem', fontWeight:'600', color:'#555'}}>
+                                                    🧬 Giống
+                                                </label>
+                                                <input type="text" placeholder="VD: Corgi, Munchkin..." value={newCustomerForm.giongPet} onChange={e => setNewCustomerForm({...newCustomerForm, giongPet: e.target.value})} style={{width:'100%', padding:'10px', borderRadius:'6px', border:'1px solid #ddd', boxSizing:'border-box', fontSize:'0.9rem'}} />
+                                            </div>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                                <div>
+                                                    <label style={{display:'flex', alignItems:'center', gap:'5px', marginBottom:'5px', fontSize:'0.85rem', fontWeight:'600', color:'#555'}}>
+                                                        🎂 Ngày sinh
+                                                    </label>
+                                                    <input type="date" value={newCustomerForm.ngaySinhPet} onChange={e => setNewCustomerForm({...newCustomerForm, ngaySinhPet: e.target.value})} max={dayjs().format('YYYY-MM-DD')} style={{width:'100%', padding:'10px', borderRadius:'6px', border:'1px solid #ddd', boxSizing:'border-box', fontSize:'0.9rem'}} />
+                                                </div>
+                                                <div>
+                                                    <label style={{display:'flex', alignItems:'center', gap:'5px', marginBottom:'5px', fontSize:'0.85rem', fontWeight:'600', color:'#555'}}>
+                                                        💪 Tình trạng sức khỏe
+                                                    </label>
+                                                    <select value={newCustomerForm.tinhTrangSucKhoe} onChange={e => setNewCustomerForm({...newCustomerForm, tinhTrangSucKhoe: e.target.value})} style={{width:'100%', padding:'10px', borderRadius:'6px', border:'1px solid #ddd', fontSize:'0.9rem'}}>
+                                                        <option value="Bình thường">Bình thường</option>
+                                                        <option value="Tốt">Tốt</option>
+                                                        <option value="Yếu">Yếu</option>
+                                                        <option value="Đang điều trị">Đang điều trị</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Dịch vụ cần làm */}
+                                    <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #eee' }}>
+                                        <label style={{display:'flex', alignItems:'center', gap:'5px', marginBottom:'8px', fontSize:'0.85rem', fontWeight:'600', color:'#555'}}>
+                                            🩺 Dịch vụ cần làm:
+                                        </label>
+                                        <select value={newCustomerForm.loaiPhieu} onChange={e => setNewCustomerForm({...newCustomerForm, loaiPhieu: e.target.value})} style={{width:'100%', padding:'10px', borderRadius:'6px', border:'1px solid #ddd', fontSize:'0.9rem'}}>
                                             <option value="KB">🩺 Khám bệnh</option>
                                             <option value="TV">💉 Tiêm vaccine</option>
                                         </select>
                                     </div>
-                                    
-                                    {newCustomerForm.loaiPhieu === 'TV' && (
-                                        <div style={{padding: '12px', background: '#e3f2fd', borderRadius: '5px', marginBottom: '12px', fontSize: '14px'}}>
-                                            ℹ️ <strong>Lưu ý:</strong> Bác sĩ sẽ chọn vaccine/gói tiêm sau khi check-in
-                                        </div>
-                                    )}
-                                    
-                                    <div style={{marginBottom: '12px'}}>
-                                        <label style={{display: 'block', marginBottom: '5px', fontWeight: '600', fontSize: '14px'}}>
-                                            📝 Triệu chứng / Ghi chú
-                                        </label>
-                                        <textarea 
-                                            placeholder="Mô tả triệu chứng, lý do đến khám..."
-                                            value={newCustomerForm.trieuChung}
-                                            onChange={(e) => setNewCustomerForm({...newCustomerForm, trieuChung: e.target.value})}
-                                            rows="3"
-                                            style={{width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', resize: 'vertical', fontSize: '15px'}}
-                                        />
+
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '15px', borderTop: '1px solid #f1f2f6' }}>
+                                        <button onClick={resetWalkInModal} style={{ padding: '10px 20px', border: '1px solid #ddd', borderRadius: '6px', background: '#fff', color: '#555', cursor: 'pointer', fontWeight: '600' }}>Hủy</button>
+                                        <button onClick={handleNewCustomerSubmit} disabled={loading} style={{ padding: '10px 25px', border: 'none', borderRadius: '6px', background: '#3498db', color: 'white', fontWeight: '600', cursor: 'pointer' }}>
+                                            {loading ? 'Đang tạo...' : 'Tạo hồ sơ & Phiếu'}
+                                        </button>
                                     </div>
                                 </div>
-                                
-                                <div style={{display: 'flex', gap: '10px'}}>
-                                    <button onClick={resetWalkInModal} className="btn-cancel" style={{flex: 1}}>
-                                        Hủy
-                                    </button>
-                                    <button 
-                                        onClick={handleNewCustomerSubmit}
-                                        disabled={loading || !newCustomerForm.hoTen || !(newCustomerForm.sdt || phoneSearch) || !newCustomerForm.tenPet || !newCustomerForm.loaiPet}
-                                        className="btn-primary" 
-                                        style={{
-                                            flex: 2, 
-                                            opacity: (!newCustomerForm.hoTen || !(newCustomerForm.sdt || phoneSearch) || !newCustomerForm.tenPet || !newCustomerForm.loaiPet) ? 0.5 : 1,
-                                            cursor: (!newCustomerForm.hoTen || !(newCustomerForm.sdt || phoneSearch) || !newCustomerForm.tenPet || !newCustomerForm.loaiPet) ? 'not-allowed' : 'pointer'
-                                        }}
-                                    >
-                                        {loading ? '⏳ Đang tạo...' : '✅ Tạo phiếu'}
-                                    </button>
-                                </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
                 </div>
             )}
-
-            {/* MODAL XUẤT HÓA ĐƠN */}
+            
+{/* 🔥 MODAL XUẤT HÓA ĐƠN (ĐÃ SỬA GIAO DIỆN CĂN GIỮA & CHỐNG NHẢY DÒNG) */}
             {showInvoiceModal && (
                 <div className="modal-overlay" onClick={() => setShowInvoiceModal(false)}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{maxWidth: '500px'}}>
-                        <h3>💳 Xuất Hóa Đơn</h3>
-                        <p style={{marginBottom: '15px', fontSize: '0.9rem', color: '#666'}}>
-                            Phiếu: <strong>#{currentInvoiceTicket?.MaPhieu}</strong>
-                        </p>
-
-                        <div style={{marginBottom: '20px', background: '#f8f9fa', padding: '15px', borderRadius: '8px'}}>
-                            <div style={{marginBottom: '10px'}}>
-                                <strong>👤 Khách hàng:</strong> {currentInvoiceTicket?.TenKhachHang}
+                    <div 
+                        className="modal-content" 
+                        onClick={e => e.stopPropagation()} 
+                        style={{ 
+                            maxWidth: '480px', 
+                            width: '90%', 
+                            borderRadius: '16px', 
+                            padding: '0', 
+                            overflow: 'hidden', 
+                            fontFamily: '"Segoe UI", sans-serif',
+                            boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
+                        }}
+                    >
+                        <div style={{ padding: '30px 25px' }}>
+                            
+                            {/* 1. Header: Căn giữa tuyệt đối */}
+                            <div style={{ textAlign: 'center', marginBottom: '25px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '10px' }}>
+                                    <CreditCard size={32} color="#3498db" />
+                                    <h3 style={{ margin: 0, color: '#2c3e50', fontSize: '1.5rem', fontWeight: '800' }}>Xuất Hóa Đơn</h3>
+                                </div>
+                                <div style={{ height: '3px', width: '50px', background: '#ecf0f1', margin: '0 auto 12px', borderRadius: '10px' }}></div>
+                                <p style={{ color: '#7f8c8d', fontSize: '0.95rem', margin: 0 }}>
+                                    Phiếu: <strong style={{color:'#2c3e50'}}>#{currentInvoiceTicket?.MaPhieu}</strong>
+                                </p>
                             </div>
-                            <div style={{marginBottom: '10px'}}>
-                                <strong>🐾 Thú cưng:</strong> {currentInvoiceTicket?.TenThuCung || 'Chưa rõ'}
-                            </div>
-                            <div>
-                                <strong>🏥 Dịch vụ:</strong> {currentInvoiceTicket?.LoaiDichVu}
-                            </div>
-                        </div>
-                        
-                        <div style={{marginBottom: '15px'}}>
-                            <label style={{display: 'block', marginBottom: '5px', fontWeight: '600'}}>
-                                🎯 Điểm tích lũy muốn sử dụng:
-                                <span style={{color: '#27ae60', fontWeight: 'bold', marginLeft: '10px'}}>
-                                    (Hiện có: {invoiceData.DiemHienCo || 0} điểm)
-                                </span>
-                            </label>
-                            <input 
-                                type="number"
-                                min="0"
-                                max={invoiceData.DiemHienCo || 0}
-                                value={invoiceData.DiemMuonDung}
-                                onChange={(e) => {
-                                    const value = parseInt(e.target.value) || 0;
-                                    const maxDiem = invoiceData.DiemHienCo || 0;
-                                    setInvoiceData({...invoiceData, DiemMuonDung: Math.min(value, maxDiem)});
-                                }}
-                                placeholder={invoiceData.DiemHienCo > 0 ? "Nhập số điểm (1 điểm = 1.000 đ)" : "Không có điểm"}
-                                disabled={!invoiceData.DiemHienCo || invoiceData.DiemHienCo === 0}
-                                style={{
-                                    width: '100%', 
-                                    padding: '10px', 
-                                    border: '1px solid #ddd', 
-                                    borderRadius: '5px', 
-                                    fontSize: '15px',
-                                    background: (!invoiceData.DiemHienCo || invoiceData.DiemHienCo === 0) ? '#f0f0f0' : 'white',
-                                    cursor: (!invoiceData.DiemHienCo || invoiceData.DiemHienCo === 0) ? 'not-allowed' : 'text'
-                                }}
-                            />
-                            <small style={{color: '#7f8c8d', fontSize: '12px'}}>
-                                {invoiceData.DiemHienCo > 0 
-                                    ? `Lưu ý: 1 điểm = 1.000 đ giảm giá (Tối đa: ${invoiceData.DiemHienCo} điểm)` 
-                                    : '⚠️ Khách hàng chưa có điểm tích lũy'}
-                            </small>
-                        </div>
 
-                        <div style={{marginBottom: '20px'}}>
-                            <label style={{display: 'block', marginBottom: '5px', fontWeight: '600'}}>
-                                💵 Phương thức thanh toán:
-                            </label>
-                            <select
-                                value={invoiceData.PhuongThucTT}
-                                onChange={(e) => setInvoiceData({...invoiceData, PhuongThucTT: e.target.value})}
-                                style={{width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', fontSize: '15px'}}
-                            >
-                                <option value="Tiền mặt">💵 Tiền mặt</option>
-                                <option value="Chuyển khoản">🏦 Chuyển khoản</option>
-                            </select>
-                        </div>
+                            {/* 2. Khung Thông Tin: Màu nền nhẹ, căn giữa nội dung */}
+                            <div style={{ 
+                                background: '#f8f9fa', 
+                                padding: '20px', 
+                                borderRadius: '12px', 
+                                marginBottom: '25px', 
+                                border: '1px solid #edf2f7',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center', // Căn giữa các dòng
+                                gap: '10px'
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', fontSize: '1rem', color: '#333' }}>
+                                    <User size={18} style={{ marginRight: '8px', color: '#8e44ad' }} />
+                                    <span><strong>Khách hàng:</strong> {currentInvoiceTicket?.TenKhachHang}</span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', fontSize: '1rem', color: '#333' }}>
+                                    <span style={{ fontSize: '1.2rem', marginRight: '8px', lineHeight: '1' }}>🐾</span>
+                                    <span><strong>Thú cưng:</strong> {currentInvoiceTicket?.TenThuCung || 'Chưa rõ'}</span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', fontSize: '1rem', color: '#333' }}>
+                                    <FileText size={18} style={{ marginRight: '8px', color: '#e67e22' }} />
+                                    <span><strong>Dịch vụ:</strong> {currentInvoiceTicket?.LoaiDichVu}</span>
+                                </div>
+                            </div>
 
-                        <div className="modal-actions">
-                            <button onClick={() => setShowInvoiceModal(false)} className="btn-cancel">Hủy</button>
-                            <button 
-                                onClick={confirmExportInvoice} 
-                                disabled={loading} 
-                                className="btn-check-in"
-                                style={{background: '#27ae60'}}
-                            >
-                                {loading ? 'Đang xử lý...' : '✅ Xác nhận xuất'}
-                            </button>
+                            {/* 3. Nhập Điểm: Label căn giữa, Input rộng */}
+                            <div style={{ marginBottom: '20px' }}>
+                                <label style={{ 
+                                    display: 'flex', 
+                                    justifyContent: 'space-between', 
+                                    alignItems: 'center', 
+                                    marginBottom: '8px', 
+                                    fontWeight: '700', 
+                                    fontSize: '14px', 
+                                    color: '#555' 
+                                }}>
+                                    <span style={{display:'flex', alignItems:'center', gap:'6px'}}>
+                                        <Award size={18} color="#e84393"/> Điểm tích lũy:
+                                    </span>
+                                    <span style={{ color: '#27ae60', fontWeight: 'bold' }}>
+                                        (Có: {invoiceData.DiemHienCo} điểm)
+                                    </span>
+                                </label>
+                                <input 
+                                    type="number" 
+                                    min="0" 
+                                    max={invoiceData.DiemHienCo || 0}
+                                    value={invoiceData.DiemMuonDung}
+                                    onChange={(e) => {
+                                        const val = parseInt(e.target.value) || 0;
+                                        setInvoiceData({...invoiceData, DiemMuonDung: val});
+                                    }}
+                                    placeholder="Nhập số điểm muốn dùng..."
+                                    disabled={!invoiceData.DiemHienCo}
+                                    style={{ 
+                                        width: '100%', 
+                                        padding: '12px 15px', 
+                                        borderRadius: '8px', 
+                                        border: '1px solid #dfe6e9', 
+                                        fontSize: '16px', 
+                                        outline: 'none',
+                                        background: (!invoiceData.DiemHienCo) ? '#f5f6fa' : '#fff',
+                                        color: '#2d3436',
+                                        boxSizing: 'border-box' // Quan trọng để không bị tràn
+                                    }}
+                                />
+                                {(!invoiceData.DiemHienCo || invoiceData.DiemHienCo === 0) && (
+                                    <div style={{ color: '#f39c12', fontSize: '13px', marginTop: '6px', textAlign: 'center', fontStyle: 'italic' }}>
+                                        ⚠️ Khách hàng chưa có điểm tích lũy
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* 4. Chọn Phương Thức: Label căn giữa */}
+                            <div style={{ marginBottom: '30px' }}>
+                                <label style={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    gap: '8px', 
+                                    marginBottom: '8px', 
+                                    fontWeight: '700', 
+                                    fontSize: '14px', 
+                                    color: '#555' 
+                                }}>
+                                    <DollarSign size={18} color="#27ae60" /> Phương thức thanh toán:
+                                </label>
+                                <div style={{ position: 'relative' }}>
+                                    <select 
+                                        value={invoiceData.PhuongThucTT} 
+                                        onChange={(e) => setInvoiceData({...invoiceData, PhuongThucTT: e.target.value})}
+                                        style={{ 
+                                            width: '100%', 
+                                            padding: '12px 15px', 
+                                            borderRadius: '8px', 
+                                            border: '1px solid #dfe6e9', 
+                                            fontSize: '16px', 
+                                            outline: 'none', 
+                                            cursor: 'pointer', 
+                                            background: '#fff',
+                                            appearance: 'none',
+                                            boxSizing: 'border-box'
+                                        }}
+                                    >
+                                        <option value="Tiền mặt">💵 Tiền mặt</option>
+                                        <option value="Chuyển khoản">🏦 Chuyển khoản</option>
+                                    </select>
+                                    {/* Mũi tên dropdown tùy chỉnh */}
+                                    <div style={{ 
+                                        position: 'absolute', 
+                                        right: '15px', 
+                                        top: '50%', 
+                                        transform: 'translateY(-50%)', 
+                                        pointerEvents: 'none', 
+                                        color: '#999',
+                                        fontSize: '12px'
+                                    }}>▼</div>
+                                </div>
+                            </div>
+                            
+                            {/* 5. Footer Buttons: Căn phải, khoảng cách đều */}
+                            <div style={{ 
+                                display: 'flex', 
+                                gap: '12px', 
+                                justifyContent: 'flex-end', 
+                                paddingTop: '20px', 
+                                borderTop: '1px solid #f1f2f6' 
+                            }}>
+                                <button 
+                                    onClick={() => setShowInvoiceModal(false)} 
+                                    style={{ 
+                                        padding: '12px 24px', 
+                                        border: 'none', 
+                                        borderRadius: '8px', 
+                                        background: '#f1f2f6', 
+                                        color: '#636e72', 
+                                        fontWeight: '700', 
+                                        cursor: 'pointer',
+                                        fontSize: '14px'
+                                    }}
+                                >
+                                    Hủy
+                                </button>
+                                <button 
+                                    onClick={confirmExportInvoice} 
+                                    disabled={loading} 
+                                    style={{ 
+                                        padding: '12px 28px', 
+                                        border: 'none', 
+                                        borderRadius: '8px', 
+                                        background: '#27ae60', 
+                                        color: 'white', 
+                                        fontWeight: '700', 
+                                        cursor: loading ? 'not-allowed' : 'pointer', 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        gap: '8px', 
+                                        opacity: loading ? 0.7 : 1, 
+                                        boxShadow: '0 4px 15px rgba(39, 174, 96, 0.25)',
+                                        fontSize: '14px'
+                                    }}
+                                >
+                                    {loading ? 'Đang xử lý...' : <><CheckCircle size={18} /> Xác nhận xuất</>}
+                                </button>
+                            </div>
+
                         </div>
                     </div>
                 </div>
             )}
-        </div>
-    );
+        </div>
+    );
 };
 
 export default ServiceBookings;
+
+

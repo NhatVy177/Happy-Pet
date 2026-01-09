@@ -48,7 +48,7 @@ const DirectSale = () => {
     const loadProducts = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get('https://happy-pet-fomc.onrender.com/api/employee/products', {
+            const res = await axios.get('http://localhost:5000/api/employee/products', {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setProducts(res.data);
@@ -65,7 +65,7 @@ const DirectSale = () => {
         
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get(`https://happy-pet-fomc.onrender.com/api/employee/search-customer?sdt=${phoneSearch}`, {
+            const res = await axios.get(`http://localhost:5000/api/employee/search-customer?sdt=${phoneSearch}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             
@@ -93,7 +93,7 @@ const DirectSale = () => {
         
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.post('https://happy-pet-fomc.onrender.com/api/employee/create-customer-simple', 
+            const res = await axios.post('http://localhost:5000/api/employee/create-customer-simple', 
                 {
                     HoTen: hoTen,
                     SDT: sdt,
@@ -204,7 +204,7 @@ const DirectSale = () => {
         
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.post('https://happy-pet-fomc.onrender.com/api/employee/direct-sale', 
+            const res = await axios.post('http://localhost:5000/api/employee/direct-sale', 
                 {
                     MaKH: customerInfo.MaKH,
                     sanPham: selectedProducts.map(p => ({
@@ -713,7 +713,6 @@ const DirectSale = () => {
                         >
                             <option value="Tiền mặt">Tiền mặt</option>
                             <option value="Chuyển khoản">Chuyển khoản</option>
-                            <option value="Thẻ">Thẻ</option>
                         </select>
                     </div>
                     
@@ -776,12 +775,20 @@ const DirectSale = () => {
                     <div style={{ fontSize: '60px', marginBottom: '20px' }}>✅</div>
                     <h3 style={{ fontSize: '28px', marginBottom: '20px', color: '#4CAF50' }}>Bán hàng thành công!</h3>
                     <div style={{ background: '#f5f5f5', padding: '20px', borderRadius: '8px', marginBottom: '25px', textAlign: 'left' }}>
-                        <p><strong>Mã phiếu:</strong> {invoiceData.MaPhieu}</p>
+                        <p><strong>Mã phiếu:</strong> {invoiceData.MaHoaDon || invoiceData.MaPhieu}</p>
                         <p><strong>Khách hàng:</strong> {customerInfo.HoTen}</p>
-                        <p><strong>Tổng tiền:</strong> {invoiceData.TongGiaTri?.toLocaleString()} đ</p>
-                        <p><strong>Đã thu:</strong> {invoiceData.SoTienThanhToan?.toLocaleString()} đ</p>
-                        {diemMuonDung > 0 && <p><strong>Điểm đã dùng:</strong> {diemMuonDung}</p>}
+                        <p><strong>Tổng tiền hàng:</strong> {invoiceData.TongTienHang} đ</p>
+                        {invoiceData.GiamHangTV !== '0' && <p><strong>Giảm hạng TV:</strong> -{invoiceData.GiamHangTV} đ</p>}
+                        {diemMuonDung > 0 && <p><strong>Giảm điểm:</strong> -{invoiceData.GiamDiem} đ ({diemMuonDung} điểm)</p>}
+                        <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#4CAF50', marginTop: '12px' }}>
+                            <strong>Khách cần trả:</strong> {invoiceData.KhachCanTra} đ
+                        </p>
                         <p><strong>Phương thức:</strong> {phuongThucTT}</p>
+                        {invoiceData.DiemDuocCong > 0 && (
+                            <p style={{ color: '#FF9800', fontWeight: 'bold' }}>
+                                🎁 +{invoiceData.DiemDuocCong} điểm tích lũy
+                            </p>
+                        )}
                     </div>
                     <button 
                         onClick={resetAndStartNew}
