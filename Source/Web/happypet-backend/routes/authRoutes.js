@@ -18,4 +18,9 @@ router.post('/change-password', verifyToken, authController.changePassword);
 router.post('/google-register', authController.completeGoogleRegister); // Thêm dòng này
 router.post('/google-login', authController.googleLogin); // Thêm dòng này
 
+
+// 4. Quên mật khẩu - Kiểm tra tài khoản và lấy SĐT đã được mask
+router.get('/check-account', authController.checkAccount); // Phải có dòng này!
+router.post('/forgot-password', authController.forgotPassword);
+
 module.exports = router;

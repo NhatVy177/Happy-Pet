@@ -100,6 +100,7 @@ import ProtectedRoute from './components/ProtectedRoute'; // 🔥 PHẢI CÓ CÁ
 // 2. Import các trang (Pages)
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
+import ForgotPassword from './pages/auth/ForgotPassword';
 import Home from './pages/Home';
 import MyPets from './pages/customer/MyPets';
 import Profile from './pages/Profile';
@@ -126,6 +127,10 @@ import EmployeeRecheckReminder from './pages/employee/RecheckReminder'; // 🔥 
 import DirectSale from './pages/employee/DirectSale'; // 🔥 BÁN HÀNG TRỰC TIẾP
 import ManagerDashboard from './pages/manager/ManagerDashboard'; // 🔥 GIÁM ĐỐC (Dashboard đẹp)
 import BranchManagerDashboard from './pages/manager/BranchManagerDashboard'; // 🔥 QUẢN LÝ CHI NHÁNH
+// Thêm import:
+
+
+// Thêm route:
 
 function App() {
 
@@ -167,6 +172,7 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/services" element={<Services />} />
           <Route path="/products" element={<Products />} />
 

@@ -11,4 +11,3 @@ Bước 4. Vào terminal
 - Cd vào thư mục chứa folder happypet - backend. Chạy npm install => chạy node index.js
 - Cd vào thư mục chứa folder happypet - frontend. Chạy npm install => chạy npm start
 
-- 
