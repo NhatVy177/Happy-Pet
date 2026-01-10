@@ -467,11 +467,26 @@ const DirectSale = () => {
                                     transition: 'transform 0.3s, box-shadow 0.3s',
                                     cursor: 'pointer'
                                 }}>
-                                    <img 
+                                    {/* <img 
                                         src={FALLBACK_IMG}
                                         alt={product.TenMatHang}
                                         style={{ width: '100%', height: '180px', objectFit: 'cover' }}
+                                    /> */}
+                                    {/* --- SỬA ĐOẠN NÀY --- */}
+                                    <img 
+                                        // Logic: Lấy đường dẫn trực tiếp từ public folder dựa theo Mã mặt hàng
+                                        src={`/images/products/${product.MaMatHang}.jpg`} 
+                                        
+                                        // Nếu không tìm thấy ảnh (ví dụ chưa chép hình vào folder) thì dùng ảnh lỗi
+                                        onError={(e) => { 
+                                            e.target.onerror = null; 
+                                            e.target.src = FALLBACK_IMG; 
+                                        }}
+                                        
+                                        alt={product.TenMatHang}
+                                        style={{ width: '100%', height: '180px', objectFit: 'cover' }}
                                     />
+                                    {/* ------------------- */}
                                     <div style={{ padding: '15px' }}>
                                         <h4 style={{ 
                                             fontSize: '15px', 

@@ -235,12 +235,13 @@ getCart: async () => {
   },
 
   // 🔥 [QUAN TRỌNG - ĐÃ SỬA] Chốt đơn (Thêm NgayNhanHang và DiaChi)
-  completeOrder: async (maPhieu, diemDung = 0, ngayNhan, diaChi) => {
+  completeOrder: async (maPhieu, diemDung = 0, ngayNhan, diaChi, phuongThucTT = 'Tiền mặt') => {
     const response = await axios.post(`${BASE_URL}/orders/complete`, { 
         MaPhieu: maPhieu, 
         DiemDung: diemDung,
-        NgayNhanHang: ngayNhan, // Gửi ngày nhận xuống
-        DiaChi: diaChi          // Gửi địa chỉ xuống
+        NgayNhanHang: ngayNhan,
+        DiaChi: diaChi,
+        PhuongThucTT: phuongThucTT  // 🔥 Thêm phương thức thanh toán
     }, getAuthHeader());
     return response.data;
   },

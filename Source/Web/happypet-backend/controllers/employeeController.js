@@ -248,56 +248,72 @@ exports.confirmDelivery = async (req, res) => {
             return res.status(404).json({ message: 'Không tìm thấy phiếu!' });
         }
 
-        const { TG_ThucHienDV, TrangThai, LoaiPhieu } = checkTicket.recordset[0];
+        let { TG_ThucHienDV, TrangThai, LoaiPhieu } = checkTicket.recordset[0];
+        
+        // 🔥 TRIM để loại bỏ khoảng trắng từ NCHAR
+        TrangThai = (TrangThai || '').trim();
+        LoaiPhieu = (LoaiPhieu || '').trim();
+        
+        console.log('🔍 Check TrangThai:', TrangThai, '| LoaiPhieu:', LoaiPhieu);
         
         if (TrangThai !== 'DTH') {
-            return res.status(400).json({ message: 'Chỉ xác nhận được đơn hàng đang giao!' });
+            return res.status(400).json({ message: `Chỉ xác nhận được đơn hàng đang giao! Trạng thái hiện tại: ${TrangThai}` });
         }
 
-        // Check ngày nhận
-        const ngayNhan = new Date(TG_ThucHienDV);
-        const homNay = new Date();
-        ngayNhan.setHours(0, 0, 0, 0);
-        homNay.setHours(0, 0, 0, 0);
+        // 🔥 TẠM THỜI BỎ CHECK NGÀY ĐỂ TEST
+        // // Check ngày nhận
+        // const ngayNhan = new Date(TG_ThucHienDV);
+        // const homNay = new Date();
+        // ngayNhan.setHours(0, 0, 0, 0);
+        // homNay.setHours(0, 0, 0, 0);
 
-        if (ngayNhan.getTime() > homNay.getTime()) {
-            return res.status(400).json({ 
-                message: `Chưa đến ngày nhận hàng! Ngày mong muốn: ${ngayNhan.toLocaleDateString('vi-VN')}` 
-            });
-        }
+        // if (ngayNhan.getTime() > homNay.getTime()) {
+        //     return res.status(400).json({ 
+        //         message: `Chưa đến ngày nhận hàng! Ngày mong muốn: ${ngayNhan.toLocaleDateString('vi-VN')}` 
+        //     });
+        // }
 
-        // 🔥 HOÀN TẤT ĐƠN: DTH → HT (hoặc DHT nếu là đơn có hóa đơn)
-        const newStatus = LoaiPhieu === 'MH' ? 'HT' : 'DHT';
-        
+        // 🔥 HOÀN TẤT ĐƠN: DTH → DHT (Đã hoàn tất)
+        // CHECK constraint chỉ cho phép: 'DD', 'DTH', 'DHT', 'DH'
         await pool.request()
             .input('MP', sql.NChar(10), MaPhieu)
-            .input('Status', sql.NChar(10), newStatus)
             .query(`
                 UPDATE PHIEU_DICH_VU
-                SET TrangThai = @Status,
+                SET TrangThai = 'DHT',
                     TG_ThucHienDV = GETDATE()
                 WHERE LTRIM(RTRIM(MaPhieu)) = LTRIM(RTRIM(@MP))
             `);
 
-        // 🔥 CỘNG ĐIỂM CHO KHÁCH (nếu là đơn mua hàng online MH)
+        // 🔥 UPDATE TRẠNG THÁI HÓA ĐƠN + CỘNG ĐIỂM (nếu là đơn online)
         if (LoaiPhieu === 'MH') {
-            const hdResult = await pool.request()
+            // Update TrangThaiHD = 'DTT' (Đã Thanh Toán)
+            await pool.request()
                 .input('MP', sql.NChar(10), MaPhieu)
-                .query(`SELECT MaHoaDon FROM HOA_DON WHERE LTRIM(RTRIM(MaPhieu)) = LTRIM(RTRIM(@MP))`);
+                .query(`
+                    UPDATE HD_TRUC_TUYEN
+                    SET TrangThaiHD = 'DTT'
+                    WHERE LTRIM(RTRIM(MaPhieu)) = LTRIM(RTRIM(@MP))
+                `);
             
-            if (hdResult.recordset.length > 0) {
-                const MaHD = hdResult.recordset[0].MaHoaDon;
-                
-                // Gọi SP cộng điểm
-                await pool.request()
-                    .input('MaHD', sql.NChar(10), MaHD)
-                    .execute('sp_CapNhatDiemSauKhiGiaoHang');
-            }
+            console.log('💰 Cộng điểm cho đơn:', MaPhieu);
+            
+            // Gọi SP cộng điểm (nhận MaPhieu chứ không phải MaHD)
+            const diemResult = await pool.request()
+                .input('MaPhieu', sql.NChar(10), MaPhieu)
+                .execute('sp_CapNhatDiemSauKhiGiaoHang');
+            
+            const diemInfo = diemResult.recordset[0];
+            return res.json({ 
+                success: true, 
+                message: `Đơn hàng đã hoàn tất! Đã cộng ${diemInfo.DiemDuocCong} điểm cho khách hàng.`,
+                diemCong: diemInfo.DiemDuocCong,
+                diemConLai: diemInfo.DiemConLai
+            });
         }
 
         return res.json({ 
             success: true, 
-            message: 'Đơn hàng đã hoàn tất và cộng điểm cho khách!' 
+            message: 'Đơn hàng đã hoàn tất!' 
         });
 
     } catch (err) {

@@ -99,7 +99,7 @@ exports.getOrderHistory = async (req, res) => {
 
 exports.checkout = async (req, res) => {
     try {
-        const { MaPhieu, DiemDung, NgayNhanHang, DiaChi } = req.body;
+        const { MaPhieu, DiemDung, NgayNhanHang, DiaChi, PhuongThucTT } = req.body;  // 🔥 Thêm PhuongThucTT
 
         if (!MaPhieu) return res.status(400).json({ message: 'Thiếu mã phiếu!' });
 
@@ -125,16 +125,18 @@ exports.checkout = async (req, res) => {
             }
         }
 
-        // 2. CẬP NHẬT ĐỊA CHỈ, SHIP, VÀ TG_ThucHienDV (Ngày muốn nhận)
+        // 2. CẬP NHẬT ĐỊA CHỈ, SHIP, PHƯƠNG THỨC TT, VÀ TG_ThucHienDV (Ngày muốn nhận)
         await pool.request()
             .input('MP', sql.VarChar, MaPhieu)
             .input('DC', sql.NVarChar, DiaChi || 'Tại cửa hàng')
             .input('Ship', sql.Int, phiShipMoi)
             .input('NgayNhan', sql.DateTime, NgayNhanHang ? `${NgayNhanHang} 11:00:00` : null)
+            .input('PTTT', sql.NVarChar, PhuongThucTT || 'Tiền mặt')  // 🔥 Thêm phương thức thanh toán
             .query(`
                 UPDATE HD_TRUC_TUYEN 
                 SET DiaChiGiaoHang = @DC, 
-                    PhiGiaoHang = @Ship
+                    PhiGiaoHang = @Ship,
+                    PhuongThucTT = @PTTT
                 WHERE LTRIM(RTRIM(MaPhieu)) = LTRIM(RTRIM(@MP));
                 
                 -- Cập nhật TG_ThucHienDV nếu có ngày muốn nhận

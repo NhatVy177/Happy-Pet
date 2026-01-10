@@ -33,4 +33,9 @@ router.get('/employees/top-rated', verifyBranchManager, branchManagerController.
 router.get('/service/top-revenue', verifyBranchManager, branchManagerController.getTopService);
 router.get('/members/stats', verifyBranchManager, branchManagerController.getMemberStats); // ?nam=2024
 
+// 🔥 THỐNG KÊ PHÒNG KHÁM (CHI NHÁNH)
+router.get('/revenue/by-doctor', verifyBranchManager, branchManagerController.getRevenueByDoctor); // ?tuNgay=&denNgay=
+router.get('/stats/exams', verifyBranchManager, branchManagerController.getExamStats); // ?tuNgay=&denNgay=
+router.get('/stats/product-sales', verifyBranchManager, branchManagerController.getProductSalesStats); // ?tuNgay=&denNgay=
+
 module.exports = router;

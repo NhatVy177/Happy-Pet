@@ -29,4 +29,9 @@ router.post('/add-product', managerController.addProduct);
 router.get('/employees', managerController.getAllEmployees);
 router.get('/products', managerController.getAllProducts);
 
+// 🔥 THỐNG KÊ MỚI: Doanh thu bác sĩ, lượt khám, bán hàng (CHI NHÁNH)
+router.get('/revenue/by-doctor', managerController.getRevenueByDoctor);
+router.get('/stats/exams', managerController.getExamStats);
+router.get('/stats/product-sales', managerController.getProductSalesStats);
+
 module.exports = router;

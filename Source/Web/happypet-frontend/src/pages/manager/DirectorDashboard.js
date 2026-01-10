@@ -9,6 +9,28 @@ const DirectorDashboard = () => {
     const [memberStats, setMemberStats] = useState([]);
     const [petStats, setPetStats] = useState([]);
     
+    // 🔥 State mới cho phòng khám
+    const [doctorRevenue, setDoctorRevenue] = useState([]);
+    const [examStats, setExamStats] = useState([]);
+    const [productSales, setProductSales] = useState([]);
+    
+    // 🔥 State cho quản lý nhân viên
+    const [employees, setEmployees] = useState([]);
+    const [branches, setBranches] = useState([]);
+    const [editingEmployee, setEditingEmployee] = useState(null);
+    const [showAddForm, setShowAddForm] = useState(false);
+    const [newEmployee, setNewEmployee] = useState({
+        HoTen: '',
+        NgaySinh: '',
+        GioiTinh: 'Nam',
+        ChucVu: 'Nhân viên tiếp tân',
+        NgayVaoLam: new Date().toISOString().split('T')[0],
+        LuongCoBan: '',
+        MaCN: '',
+        TenDangNhap: '',
+        MatKhau: ''
+    });
+    
     // Filters
     const [month, setMonth] = useState(new Date().getMonth() + 1);
     const [year, setYear] = useState(new Date().getFullYear());
@@ -58,9 +80,100 @@ const DirectorDashboard = () => {
             .catch(err => console.error(err));
     };
     
+    // 🔥 Load doanh thu bác sĩ
+    const loadDoctorRevenue = () => {
+        const params = new URLSearchParams();
+        if (dateFrom) params.append('tuNgay', dateFrom);
+        if (dateTo) params.append('denNgay', dateTo);
+        
+        axios.get(`http://localhost:5000/api/director/revenue/by-doctor?${params}`, config)
+            .then(res => setDoctorRevenue(res.data))
+            .catch(err => console.error(err));
+    };
+    
+    // 🔥 Load số lượt khám
+    const loadExamStats = () => {
+        const params = new URLSearchParams();
+        if (dateFrom) params.append('tuNgay', dateFrom);
+        if (dateTo) params.append('denNgay', dateTo);
+        
+        axios.get(`http://localhost:5000/api/director/stats/exams?${params}`, config)
+            .then(res => setExamStats(res.data))
+            .catch(err => console.error(err));
+    };
+    
+    // 🔥 Load doanh thu bán hàng
+    const loadProductSales = () => {
+        const params = new URLSearchParams();
+        if (dateFrom) params.append('tuNgay', dateFrom);
+        if (dateTo) params.append('denNgay', dateTo);
+        
+        axios.get(`http://localhost:5000/api/director/stats/product-sales?${params}`, config)
+            .then(res => setProductSales(res.data))
+            .catch(err => console.error(err));
+    };
+    
+    // 🔥 Load danh sách nhân viên
+    const loadEmployees = () => {
+        axios.get('http://localhost:5000/api/director/employees', config)
+            .then(res => setEmployees(res.data))
+            .catch(err => console.error(err));
+    };
+    
+    // Load danh sách chi nhánh
+    const loadBranches = () => {
+        axios.get('http://localhost:5000/api/branches')
+            .then(res => setBranches(res.data))
+            .catch(err => console.error(err));
+    };
+    
+    // Thêm nhân viên mới
+    const handleAddEmployee = (e) => {
+        e.preventDefault();
+        axios.post('http://localhost:5000/api/director/employees/add', newEmployee, config)
+            .then(() => {
+                alert('Thêm nhân viên thành công!');
+                setShowAddForm(false);
+                setNewEmployee({
+                    HoTen: '',
+                    NgaySinh: '',
+                    GioiTinh: 'Nam',
+                    ChucVu: 'Nhân viên tiếp tân',
+                    NgayVaoLam: new Date().toISOString().split('T')[0],
+                    LuongCoBan: '',
+                    MaCN: '',
+                    TenDangNhap: '',
+                    MatKhau: ''
+                });
+                loadEmployees();
+            })
+            .catch(err => alert(err.response?.data?.message || 'Lỗi thêm nhân viên!'));
+    };
+    
+    // Cập nhật nhân viên
+    const handleUpdateEmployee = (e) => {
+        e.preventDefault();
+        axios.put(`http://localhost:5000/api/director/employees/${editingEmployee.MaNV}`, editingEmployee, config)
+            .then(() => {
+                alert('Cập nhật thành công!');
+                setEditingEmployee(null);
+                loadEmployees();
+            })
+            .catch(err => alert(err.response?.data?.message || 'Lỗi cập nhật!'));
+    };
+    
     useEffect(() => {
         if (activeTab === 'members') loadMemberStats();
         if (activeTab === 'pets') loadPetStats();
+        if (activeTab === 'clinic') {
+            loadDoctorRevenue();
+            loadExamStats();
+            loadProductSales();
+        }
+        if (activeTab === 'employees') {
+            loadEmployees();
+            loadBranches();
+        }
     }, [activeTab]);
     
     return (
@@ -74,6 +187,12 @@ const DirectorDashboard = () => {
                 </button>
                 <button onClick={() => setActiveTab('branches')} className={activeTab === 'branches' ? 'tab-active' : ''}>
                     🏪 Chi nhánh
+                </button>
+                <button onClick={() => setActiveTab('employees')} className={activeTab === 'employees' ? 'tab-active' : ''}>
+                    👥 Nhân sự
+                </button>
+                <button onClick={() => setActiveTab('clinic')} className={activeTab === 'clinic' ? 'tab-active' : ''}>
+                    🏥 Phòng khám
                 </button>
                 <button onClick={() => setActiveTab('members')} className={activeTab === 'members' ? 'tab-active' : ''}>
                     👑 Hội viên
@@ -171,6 +290,143 @@ const DirectorDashboard = () => {
                     </div>
                 )}
                 
+                {/* 🔥 TAB NHÂN SỰ */}
+                {activeTab === 'employees' && (
+                    <div className="employees-section">
+                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
+                            <h2>👥 Quản lý Nhân sự</h2>
+                            <button onClick={() => setShowAddForm(!showAddForm)} className="btn-primary">
+                                {showAddForm ? '❌ Hủy' : '➕ Thêm nhân viên'}
+                            </button>
+                        </div>
+
+                        {/* Form thêm nhân viên */}
+                        {showAddForm && (
+                            <div className="form-box" style={{marginBottom: '30px', padding: '20px', background: '#f8f9fa', borderRadius: '8px'}}>
+                                <h3>➕ Thêm nhân viên mới</h3>
+                                <form onSubmit={handleAddEmployee} style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
+                                    <div>
+                                        <label>Họ tên:</label>
+                                        <input type="text" value={newEmployee.HoTen} onChange={(e) => setNewEmployee({...newEmployee, HoTen: e.target.value})} required />
+                                    </div>
+                                    <div>
+                                        <label>Ngày sinh:</label>
+                                        <input type="date" value={newEmployee.NgaySinh} onChange={(e) => setNewEmployee({...newEmployee, NgaySinh: e.target.value})} required />
+                                    </div>
+                                    <div>
+                                        <label>Giới tính:</label>
+                                        <select value={newEmployee.GioiTinh} onChange={(e) => setNewEmployee({...newEmployee, GioiTinh: e.target.value})}>
+                                            <option value="Nam">Nam</option>
+                                            <option value="Nữ">Nữ</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label>Chức vụ:</label>
+                                        <select value={newEmployee.ChucVu} onChange={(e) => setNewEmployee({...newEmployee, ChucVu: e.target.value})}>
+                                            <option value="Nhân viên tiếp tân">Nhân viên tiếp tân</option>
+                                            <option value="Bác sĩ thú y">Bác sĩ thú y</option>
+                                            <option value="Quản lý chi nhánh">Quản lý chi nhánh</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label>Ngày vào làm:</label>
+                                        <input type="date" value={newEmployee.NgayVaoLam} onChange={(e) => setNewEmployee({...newEmployee, NgayVaoLam: e.target.value})} required />
+                                    </div>
+                                    <div>
+                                        <label>Lương cơ bản:</label>
+                                        <input type="number" value={newEmployee.LuongCoBan} onChange={(e) => setNewEmployee({...newEmployee, LuongCoBan: e.target.value})} required />
+                                    </div>
+                                    <div>
+                                        <label>Chi nhánh:</label>
+                                        <select value={newEmployee.MaCN} onChange={(e) => setNewEmployee({...newEmployee, MaCN: e.target.value})} required>
+                                            <option value="">-- Chọn chi nhánh --</option>
+                                            {branches.map(b => (
+                                                <option key={b.MaCN} value={b.MaCN}>{b.TenCN}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label>Tên đăng nhập:</label>
+                                        <input type="text" value={newEmployee.TenDangNhap} onChange={(e) => setNewEmployee({...newEmployee, TenDangNhap: e.target.value})} required />
+                                    </div>
+                                    <div>
+                                        <label>Mật khẩu:</label>
+                                        <input type="password" value={newEmployee.MatKhau} onChange={(e) => setNewEmployee({...newEmployee, MatKhau: e.target.value})} required />
+                                    </div>
+                                    <div style={{gridColumn: '1 / -1'}}>
+                                        <button type="submit" className="btn-primary" style={{width: '100%'}}>➕ Thêm nhân viên</button>
+                                    </div>
+                                </form>
+                            </div>
+                        )}
+
+                        {/* Bảng danh sách nhân viên */}
+                        <table className="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Mã NV</th>
+                                    <th>Họ tên</th>
+                                    <th>Ngày sinh</th>
+                                    <th>Giới tính</th>
+                                    <th>Chức vụ</th>
+                                    <th>Lương</th>
+                                    <th>Chi nhánh</th>
+                                    <th>Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {employees.map((emp) => (
+                                    editingEmployee && editingEmployee.MaNV === emp.MaNV ? (
+                                        <tr key={emp.MaNV} style={{background: '#fff3cd'}}>
+                                            <td>{emp.MaNV}</td>
+                                            <td><input type="text" value={editingEmployee.HoTen} onChange={(e) => setEditingEmployee({...editingEmployee, HoTen: e.target.value})} style={{width: '100%'}} /></td>
+                                            <td><input type="date" value={editingEmployee.NgaySinh} onChange={(e) => setEditingEmployee({...editingEmployee, NgaySinh: e.target.value})} style={{width: '100%'}} /></td>
+                                            <td>
+                                                <select value={editingEmployee.GioiTinh} onChange={(e) => setEditingEmployee({...editingEmployee, GioiTinh: e.target.value})} style={{width: '100%'}}>
+                                                    <option value="Nam">Nam</option>
+                                                    <option value="Nữ">Nữ</option>
+                                                </select>
+                                            </td>
+                                            <td>
+                                                <select value={editingEmployee.ChucVu} onChange={(e) => setEditingEmployee({...editingEmployee, ChucVu: e.target.value})} style={{width: '100%'}}>
+                                                    <option value="Nhân viên tiếp tân">Nhân viên tiếp tân</option>
+                                                    <option value="Bác sĩ thú y">Bác sĩ thú y</option>
+                                                    <option value="Quản lý chi nhánh">Quản lý chi nhánh</option>
+                                                </select>
+                                            </td>
+                                            <td><input type="number" value={editingEmployee.LuongCoBan} onChange={(e) => setEditingEmployee({...editingEmployee, LuongCoBan: e.target.value})} style={{width: '100%'}} /></td>
+                                            <td>
+                                                <select value={editingEmployee.MaCN} onChange={(e) => setEditingEmployee({...editingEmployee, MaCN: e.target.value})} style={{width: '100%'}}>
+                                                    {branches.map(b => (
+                                                        <option key={b.MaCN} value={b.MaCN}>{b.TenCN}</option>
+                                                    ))}
+                                                </select>
+                                            </td>
+                                            <td>
+                                                <button onClick={handleUpdateEmployee} className="btn-primary" style={{marginRight: '5px', padding: '5px 10px'}}>💾</button>
+                                                <button onClick={() => setEditingEmployee(null)} className="btn-secondary" style={{padding: '5px 10px'}}>❌</button>
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        <tr key={emp.MaNV}>
+                                            <td>{emp.MaNV}</td>
+                                            <td><strong>{emp.HoTen}</strong></td>
+                                            <td>{new Date(emp.NgaySinh).toLocaleDateString('vi-VN')}</td>
+                                            <td>{emp.GioiTinh}</td>
+                                            <td>{emp.ChucVu}</td>
+                                            <td>{parseInt(emp.LuongCoBan || 0).toLocaleString()}đ</td>
+                                            <td>{emp.TenCN}</td>
+                                            <td>
+                                                <button onClick={() => setEditingEmployee({...emp, NgaySinh: emp.NgaySinh.split('T')[0]})} className="btn-primary" style={{padding: '5px 10px'}}>✏️ Sửa</button>
+                                            </td>
+                                        </tr>
+                                    )
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+                
                 {activeTab === 'members' && (
                     <div className="members-section">
                         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
@@ -221,6 +477,105 @@ const DirectorDashboard = () => {
                                 ))}
                             </tbody>
                         </table>
+                    </div>
+                )}
+                
+                {/* 🔥 TAB PHÒNG KHÁM MỚI */}
+                {activeTab === 'clinic' && (
+                    <div className="clinic-section">
+                        <div style={{marginBottom: '30px'}}>
+                            <h2>Thống kê phòng khám</h2>
+                            <div style={{display: 'flex', gap: '15px', marginTop: '15px'}}>
+                                <div>
+                                    <label>Từ ngày: </label>
+                                    <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+                                </div>
+                                <div>
+                                    <label>Đến ngày: </label>
+                                    <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+                                </div>
+                                <button onClick={() => { loadDoctorRevenue(); loadExamStats(); loadProductSales(); }} className="btn-apply">
+                                    Xem thống kê
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Doanh thu theo bác sĩ */}
+                        <div style={{marginBottom: '30px'}}>
+                            <h3>📊 Doanh thu theo bác sĩ</h3>
+                            <table className="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Bác sĩ</th>
+                                        <th>Chi nhánh</th>
+                                        <th>Số lượt khám</th>
+                                        <th>Doanh thu</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {doctorRevenue.map((doc, idx) => (
+                                        <tr key={idx}>
+                                            <td><strong>{doc.TenBacSi}</strong></td>
+                                            <td>{doc.ChiNhanh}</td>
+                                            <td>{doc.SoLuotKham}</td>
+                                            <td className="total-col">{parseInt(doc.TongDoanhThu || 0).toLocaleString()}đ</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Số lượt khám */}
+                        <div style={{marginBottom: '30px'}}>
+                            <h3>📅 Số lượt khám theo ngày</h3>
+                            <table className="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Ngày</th>
+                                        <th>Chi nhánh</th>
+                                        <th>Số lượt khám</th>
+                                        <th>Doanh thu</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {examStats.map((exam, idx) => (
+                                        <tr key={idx}>
+                                            <td>{new Date(exam.Ngay).toLocaleDateString('vi-VN')}</td>
+                                            <td>{exam.ChiNhanh}</td>
+                                            <td><strong>{exam.SoLuotKham}</strong></td>
+                                            <td className="total-col">{parseInt(exam.DoanhThu || 0).toLocaleString()}đ</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Doanh thu bán hàng */}
+                        <div>
+                            <h3>🛒 Doanh thu bán sản phẩm</h3>
+                            <table className="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Loại sản phẩm</th>
+                                        <th>Chi nhánh</th>
+                                        <th>Số đơn hàng</th>
+                                        <th>Tổng số lượng</th>
+                                        <th>Doanh thu</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {productSales.map((prod, idx) => (
+                                        <tr key={idx}>
+                                            <td><strong>{prod.TenLoai}</strong></td>
+                                            <td>{prod.ChiNhanh}</td>
+                                            <td>{prod.SoDonHang}</td>
+                                            <td>{prod.TongSoLuong}</td>
+                                            <td className="total-col">{parseInt(prod.TongDoanhThu || 0).toLocaleString()}đ</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 )}
             </div>

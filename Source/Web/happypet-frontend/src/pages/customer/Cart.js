@@ -28,7 +28,8 @@ const Cart = () => {
     
     const [ngayNhan, setNgayNhan] = useState('');
     const [diaChi, setDiaChi] = useState(''); 
-    const [phiShip, setPhiShip] = useState(0); 
+    const [phiShip, setPhiShip] = useState(0);
+    const [phuongThucTT, setPhuongThucTT] = useState('Tiền mặt');  // 🔥 Mặc định tiền mặt 
 
     const navigate = useNavigate();
     const DEFAULT_PET_IMG = 'https://placehold.co/80x80?text=Pet+Shop';
@@ -262,8 +263,8 @@ const Cart = () => {
             const points = parseInt(diemDung || 0, 10);
             const code = localStorage.getItem('currentOrderCode')?.replace(/\+/g, '').trim();
             
-            // 1. Gọi API hoàn tất đơn hàng
-            await orderService.completeOrder(code, points, ngayNhan, diaChi);
+            // 1. Gọi API hoàn tất đơn hàng với phương thức thanh toán
+            await orderService.completeOrder(code, points, ngayNhan, diaChi, phuongThucTT);
 
             // 2. 🔥 QUAN TRỌNG: Xóa mã phiếu cũ ngay lập tức để giỏ hàng trống sạch sẽ
             localStorage.removeItem('currentOrderCode'); 
@@ -418,6 +419,35 @@ const Cart = () => {
                                 value={ngayNhan} 
                                 onChange={handleDateChange} 
                             />
+                        </div>
+
+                        {/* 🔥 CHỌN PHƯƠNG THỨC THANH TOÁN */}
+                        <div className="form-group-modern" style={{ marginTop: '15px', marginBottom: '15px' }}>
+                            <label style={{ fontWeight: '600', marginBottom: '10px', display: 'block' }}>💳 Phương thức thanh toán:</label>
+                            <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                                    <input 
+                                        type="radio" 
+                                        name="phuongthuc" 
+                                        value="Tiền mặt"
+                                        checked={phuongThucTT === 'Tiền mặt'}
+                                        onChange={(e) => setPhuongThucTT(e.target.value)}
+                                        style={{ marginRight: '8px', cursor: 'pointer' }}
+                                    />
+                                    <span>💵 Tiền mặt (COD)</span>
+                                </label>
+                                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                                    <input 
+                                        type="radio" 
+                                        name="phuongthuc" 
+                                        value="Chuyển khoản"
+                                        checked={phuongThucTT === 'Chuyển khoản'}
+                                        onChange={(e) => setPhuongThucTT(e.target.value)}
+                                        style={{ marginRight: '8px', cursor: 'pointer' }}
+                                    />
+                                    <span>🏦 Chuyển khoản</span>
+                                </label>
+                            </div>
                         </div>
 
                         <div className="summary-divider"></div>

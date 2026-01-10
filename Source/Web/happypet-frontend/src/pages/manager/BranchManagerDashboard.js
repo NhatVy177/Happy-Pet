@@ -15,6 +15,11 @@ const BranchManagerDashboard = () => {
     const [topService, setTopService] = useState(null);
     const [memberStats, setMemberStats] = useState(null);
     
+    // 🔥 CLINIC TAB DATA
+    const [doctorRevenue, setDoctorRevenue] = useState([]);
+    const [examStats, setExamStats] = useState([]);
+    const [productSales, setProductSales] = useState([]);
+    
     // Filters cho stats
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
@@ -129,6 +134,46 @@ const BranchManagerDashboard = () => {
             .catch(err => console.error(err));
     };
     
+    // 🔥 LOAD CLINIC STATS
+    const loadDoctorRevenue = () => {
+        const params = new URLSearchParams();
+        if (dateFrom) params.append('tuNgay', dateFrom);
+        if (dateTo) params.append('denNgay', dateTo);
+        
+        axios.get(`http://localhost:5000/api/branch-manager/revenue/by-doctor?${params}`, config)
+            .then(res => {
+                console.log('Doctor revenue:', res.data);
+                setDoctorRevenue(res.data);
+            })
+            .catch(err => console.error(err));
+    };
+    
+    const loadExamStats = () => {
+        const params = new URLSearchParams();
+        if (dateFrom) params.append('tuNgay', dateFrom);
+        if (dateTo) params.append('denNgay', dateTo);
+        
+        axios.get(`http://localhost:5000/api/branch-manager/stats/exams?${params}`, config)
+            .then(res => {
+                console.log('Exam stats:', res.data);
+                setExamStats(res.data);
+            })
+            .catch(err => console.error(err));
+    };
+    
+    const loadProductSales = () => {
+        const params = new URLSearchParams();
+        if (dateFrom) params.append('tuNgay', dateFrom);
+        if (dateTo) params.append('denNgay', dateTo);
+        
+        axios.get(`http://localhost:5000/api/branch-manager/stats/product-sales?${params}`, config)
+            .then(res => {
+                console.log('Product sales:', res.data);
+                setProductSales(res.data);
+            })
+            .catch(err => console.error(err));
+    };
+    
     useEffect(() => {
         if (activeTab === 'employees') loadEmployees();
         if (activeTab === 'inventory') loadInventory();
@@ -136,7 +181,11 @@ const BranchManagerDashboard = () => {
             loadProductRevenue();
             loadTopEmployees();
             loadTopService();
-            loadMemberStats();
+        }
+        if (activeTab === 'clinic') {
+            loadDoctorRevenue();
+            loadExamStats();
+            loadProductSales();
         }
     }, [activeTab]);
     
@@ -154,6 +203,9 @@ const BranchManagerDashboard = () => {
                 </button>
                 <button onClick={() => setActiveTab('inventory')} className={activeTab === 'inventory' ? 'tab-active' : ''}>
                     📦 Tồn kho
+                </button>
+                <button onClick={() => setActiveTab('clinic')} className={activeTab === 'clinic' ? 'tab-active' : ''}>
+                    🏥 Phòng khám
                 </button>
                 <button onClick={() => setActiveTab('stats')} className={activeTab === 'stats' ? 'tab-active' : ''}>
                     📊 Thống kê
@@ -433,38 +485,104 @@ const BranchManagerDashboard = () => {
                                 <p style={{marginTop: '15px', color: '#999', fontStyle: 'italic'}}>Chưa có dữ liệu dịch vụ</p>
                             )}
                         </div>
-                        
-                        {/* Thống kê hội viên */}
-                        <div className="stats-block" style={{marginTop: '30px'}}>
-                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                                <h3>👥 Thống kê hội viên theo cấp</h3>
+                    </div>
+                )}
+                
+                {/* 🔥 TAB PHÒNG KHÁM */}
+                {activeTab === 'clinic' && (
+                    <div className="clinic-section">
+                        <div style={{marginBottom: '30px'}}>
+                            <h2>Thống kê phòng khám</h2>
+                            <div style={{display: 'flex', gap: '15px', marginTop: '15px'}}>
                                 <div>
-                                    <label>Năm: </label>
-                                    <input 
-                                        type="number" 
-                                        value={year} 
-                                        onChange={(e) => setYear(e.target.value)}
-                                        style={{width: '100px', marginLeft: '10px'}}
-                                    />
-                                    <button onClick={loadMemberStats} className="btn-primary" style={{marginLeft: '15px'}}>Xem</button>
+                                    <label>Từ ngày: </label>
+                                    <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
                                 </div>
+                                <div>
+                                    <label>Đến ngày: </label>
+                                    <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+                                </div>
+                                <button onClick={() => { loadDoctorRevenue(); loadExamStats(); loadProductSales(); }} className="btn-apply">
+                                    Xem thống kê
+                                </button>
                             </div>
-                            {memberStats && Array.isArray(memberStats) && memberStats.length > 0 && (
-                                <div className="revenue-cards" style={{marginTop: '15px'}}>
-                                    {memberStats.map((tier, idx) => (
-                                        <div key={idx} className={idx === memberStats.length - 1 ? "stat-card highlight" : "stat-card"}>
-                                            <h4>
-                                                {idx === 0 && '🥉'} 
-                                                {idx === 1 && '🥈'} 
-                                                {idx === 2 && '🥇'}
-                                                {' '}{tier.TenHang}
-                                            </h4>
-                                            <p className="stat-value">{tier.SoLuongKhach || 0} khách</p>
-                                            <p style={{fontSize: '14px', marginTop: '8px'}}>Giảm giá: {tier.PhanTramGiamGia}%</p>
-                                        </div>
+                        </div>
+
+                        {/* Doanh thu theo bác sĩ */}
+                        <div style={{marginBottom: '30px'}}>
+                            <h3>📊 Doanh thu theo bác sĩ</h3>
+                            <table className="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Bác sĩ</th>
+                                        <th>Chi nhánh</th>
+                                        <th>Số lượt khám</th>
+                                        <th>Doanh thu</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {doctorRevenue.map((doc, idx) => (
+                                        <tr key={idx}>
+                                            <td><strong>{doc.TenBacSi}</strong></td>
+                                            <td>{doc.ChiNhanh}</td>
+                                            <td>{doc.SoLuotKham}</td>
+                                            <td className="total-col">{parseInt(doc.TongDoanhThu || 0).toLocaleString()}đ</td>
+                                        </tr>
                                     ))}
-                                </div>
-                            )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Số lượt khám */}
+                        <div style={{marginBottom: '30px'}}>
+                            <h3>📅 Số lượt khám theo ngày</h3>
+                            <table className="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Ngày</th>
+                                        <th>Chi nhánh</th>
+                                        <th>Số lượt khám</th>
+                                        <th>Doanh thu</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {examStats.map((exam, idx) => (
+                                        <tr key={idx}>
+                                            <td>{new Date(exam.Ngay).toLocaleDateString('vi-VN')}</td>
+                                            <td>{exam.ChiNhanh}</td>
+                                            <td><strong>{exam.SoLuotKham}</strong></td>
+                                            <td className="total-col">{parseInt(exam.DoanhThu || 0).toLocaleString()}đ</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Doanh thu bán hàng */}
+                        <div>
+                            <h3>🛒 Doanh thu bán sản phẩm</h3>
+                            <table className="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Loại sản phẩm</th>
+                                        <th>Chi nhánh</th>
+                                        <th>Số đơn hàng</th>
+                                        <th>Tổng số lượng</th>
+                                        <th>Doanh thu</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {productSales.map((prod, idx) => (
+                                        <tr key={idx}>
+                                            <td><strong>{prod.TenLoai}</strong></td>
+                                            <td>{prod.ChiNhanh}</td>
+                                            <td>{prod.SoDonHang}</td>
+                                            <td>{prod.TongSoLuong}</td>
+                                            <td className="total-col">{parseInt(prod.TongDoanhThu || 0).toLocaleString()}đ</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 )}

@@ -42,9 +42,9 @@
 }
 
 .tab-navigation button.tab-active {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
-    box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
 }
 
 .tab-content {
@@ -234,7 +234,7 @@ label {
 
 .btn-primary {
     padding: 8px 20px;
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     border: none;
     border-radius: 6px;
@@ -245,5 +245,77 @@ label {
 
 .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+/* 🔥 CSS CHO CLINIC TAB */
+.clinic-section h2 {
+    font-size: 28px;
+    color: #1a1a2e;
+    margin-bottom: 20px;
+    font-weight: 700;
+}
+
+.clinic-section h3 {
+    font-size: 20px;
+    color: #2d3748;
+    margin-bottom: 15px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.clinic-section .btn-apply {
+    padding: 10px 24px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.clinic-section .btn-apply:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.clinic-section input[type="date"] {
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.clinic-section .total-col {
+    font-weight: 700;
+    color: #1a1a2e;
+    text-align: center;
+}
+
+.clinic-section table td:nth-child(3),
+.clinic-section table td:nth-child(4),
+.clinic-section table td:last-child {
+    text-align: center;
+}
+
+.clinic-section table th:nth-child(3),
+.clinic-section table th:nth-child(4),
+.clinic-section table th:last-child {
+    text-align: center;
+}
+
+/* CĂN GIỮA SỐ LIỆU CHO TẤT CẢ BẢNG */
+.data-table td:last-child,
+.data-table td:nth-last-child(2),
+.data-table td:nth-last-child(3) {
+    text-align: center;
+}
+
+.data-table th:last-child,
+.data-table th:nth-last-child(2),
+.data-table th:nth-last-child(3) {
+    text-align: center;
 }
