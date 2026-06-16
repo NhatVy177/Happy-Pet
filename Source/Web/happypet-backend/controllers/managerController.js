@@ -120,10 +120,12 @@ exports.getTopService = async (req, res) => {
 exports.getMembershipStats = async (req, res) => {
     try {
         const { nam } = req.query;
+        const maCN = req.user.MaCN;  // 🔥 Lấy chi nhánh từ token
 
         const pool = await sql.connect();
         const result = await pool.request()
             .input('Nam', sql.Int, parseInt(nam))
+            .input('MaCN', sql.NChar(10), maCN)  // 🔥 Truyền MaCN
             .execute('sp_ThongKeHoiVien');
 
         res.json(result.recordset);
@@ -207,7 +209,10 @@ exports.getAllEmployees = async (req, res) => {
             SELECT 
                 NV.MaNV,
                 U.HoTen,
+                U.NgaySinh,
+                U.GioiTinh,
                 NV.Chucvu,
+                NV.LuongCoBan,
                 CN.TenCN,
                 NV.MaCN
             FROM NHAN_VIEN NV
@@ -235,6 +240,63 @@ exports.getAllProducts = async (req, res) => {
             FROM MAT_HANG
             ORDER BY TenMatHang
         `);
+
+        res.json(result.recordset);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+// 🔥 THỐNG KÊ DOANH THU THEO BÁC SĨ (CHI NHÁNH)
+exports.getRevenueByDoctor = async (req, res) => {
+    try {
+        const { tuNgay, denNgay } = req.query;
+        const maCN = req.user.MaCN;  // Lấy chi nhánh từ token
+
+        const pool = await sql.connect();
+        const result = await pool.request()
+            .input('MaCN', sql.NChar(10), maCN)
+            .input('TuNgay', sql.Date, tuNgay || null)
+            .input('DenNgay', sql.Date, denNgay || null)
+            .execute('sp_ThongKeDoanhThuBacSi');
+
+        res.json(result.recordset);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+// 🔥 THỐNG KÊ SỐ LƯỢT KHÁM (CHI NHÁNH)
+exports.getExamStats = async (req, res) => {
+    try {
+        const { tuNgay, denNgay } = req.query;
+        const maCN = req.user.MaCN;
+
+        const pool = await sql.connect();
+        const result = await pool.request()
+            .input('MaCN', sql.NChar(10), maCN)
+            .input('TuNgay', sql.Date, tuNgay || null)
+            .input('DenNgay', sql.Date, denNgay || null)
+            .execute('sp_ThongKeSoLuotKham');
+
+        res.json(result.recordset);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+// 🔥 THỐNG KÊ DOANH THU BÁN HÀNG (CHI NHÁNH)
+exports.getProductSalesStats = async (req, res) => {
+    try {
+        const { tuNgay, denNgay } = req.query;
+        const maCN = req.user.MaCN;
+
+        const pool = await sql.connect();
+        const result = await pool.request()
+            .input('MaCN', sql.NChar(10), maCN)
+            .input('TuNgay', sql.Date, tuNgay || null)
+            .input('DenNgay', sql.Date, denNgay || null)
+            .execute('sp_ThongKeDoanhThuBanHang');
 
         res.json(result.recordset);
     } catch (err) {

@@ -297,4 +297,64 @@ exports.getMemberStats = async (req, res) => {
     }
 };
 
+// 🔥 15. Thống kê doanh thu bác sĩ (chi nhánh)
+exports.getRevenueByDoctor = async (req, res) => {
+    try {
+        const { tuNgay, denNgay } = req.query;
+        const maCN = req.user.MaCN;
+
+        const pool = await connectDB();
+        const result = await pool.request()
+            .input('MaCN', sql.NChar(10), maCN)
+            .input('TuNgay', sql.Date, tuNgay || null)
+            .input('DenNgay', sql.Date, denNgay || null)
+            .execute('sp_ThongKeDoanhThuBacSi');
+
+        res.json(result.recordset);
+    } catch (err) {
+        console.error('Lỗi thống kê doanh thu bác sĩ:', err);
+        res.status(500).json({ message: err.message });
+    }
+};
+
+// 🔥 16. Thống kê số lượt khám (chi nhánh)
+exports.getExamStats = async (req, res) => {
+    try {
+        const { tuNgay, denNgay } = req.query;
+        const maCN = req.user.MaCN;
+
+        const pool = await connectDB();
+        const result = await pool.request()
+            .input('MaCN', sql.NChar(10), maCN)
+            .input('TuNgay', sql.Date, tuNgay || null)
+            .input('DenNgay', sql.Date, denNgay || null)
+            .execute('sp_ThongKeSoLuotKham');
+
+        res.json(result.recordset);
+    } catch (err) {
+        console.error('Lỗi thống kê lượt khám:', err);
+        res.status(500).json({ message: err.message });
+    }
+};
+
+// 🔥 17. Thống kê doanh thu bán hàng (chi nhánh)
+exports.getProductSalesStats = async (req, res) => {
+    try {
+        const { tuNgay, denNgay } = req.query;
+        const maCN = req.user.MaCN;
+
+        const pool = await connectDB();
+        const result = await pool.request()
+            .input('MaCN', sql.NChar(10), maCN)
+            .input('TuNgay', sql.Date, tuNgay || null)
+            .input('DenNgay', sql.Date, denNgay || null)
+            .execute('sp_ThongKeDoanhThuBanHang');
+
+        res.json(result.recordset);
+    } catch (err) {
+        console.error('Lỗi thống kê bán hàng:', err);
+        res.status(500).json({ message: err.message });
+    }
+};
+
 module.exports = exports;

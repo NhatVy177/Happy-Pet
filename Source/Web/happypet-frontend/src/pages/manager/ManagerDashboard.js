@@ -11,6 +11,21 @@ const ManagerDashboard = () => {
     const [products, setProducts] = useState([]);
     const [searchTerm, setSearchTerm] = useState(''); // State tìm kiếm nhân viên
     
+    // States cho employee management
+    const [editingEmployee, setEditingEmployee] = useState(null);
+    const [showAddForm, setShowAddForm] = useState(false);
+    const [newEmployee, setNewEmployee] = useState({
+        HoTen: '',
+        NgaySinh: '',
+        GioiTinh: 'Nam',
+        ChucVu: 'Nhân viên tiếp tân',
+        NgayVaoLam: dayjs().format('YYYY-MM-DD'),
+        LuongCoBan: '',
+        MaCN: '',
+        TenDangNhap: '',
+        MatKhau: ''
+    });
+    
     // States cho các form
     const [transferData, setTransferData] = useState({
         MaNV: '',
@@ -66,7 +81,7 @@ const ManagerDashboard = () => {
 
     const loadBranches = async () => {
         try {
-            const res = await axios.get('https://happy-pet-fomc.onrender.com/api/branches');
+            const res = await axios.get('http://localhost:5000/api/branches');
             setBranches(res.data);
         } catch (err) {
             console.error(err);
@@ -75,7 +90,7 @@ const ManagerDashboard = () => {
 
     const loadEmployees = async () => {
         try {
-            const res = await axios.get('https://happy-pet-fomc.onrender.com/api/manager/employees', {
+            const res = await axios.get('http://localhost:5000/api/manager/employees', {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setEmployees(res.data);
@@ -86,7 +101,7 @@ const ManagerDashboard = () => {
 
     const loadProducts = async () => {
         try {
-            const res = await axios.get('https://happy-pet-fomc.onrender.com/api/manager/products', {
+            const res = await axios.get('http://localhost:5000/api/manager/products', {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setProducts(res.data);
@@ -98,7 +113,7 @@ const ManagerDashboard = () => {
     // ================ THỐNG KÊ ================
     const loadProductRevenue = async () => {
         try {
-            const res = await axios.get('https://happy-pet-fomc.onrender.com/api/manager/product-revenue', {
+            const res = await axios.get('http://localhost:5000/api/manager/product-revenue', {
                 params: { tuNgay: filters.tuNgay, denNgay: filters.denNgay },
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -110,7 +125,7 @@ const ManagerDashboard = () => {
 
     const loadBranchRevenue = async () => {
         try {
-            const res = await axios.get('https://happy-pet-fomc.onrender.com/api/manager/branch-revenue', {
+            const res = await axios.get('http://localhost:5000/api/manager/branch-revenue', {
                 params: { thang: filters.thang, nam: filters.nam },
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -122,7 +137,7 @@ const ManagerDashboard = () => {
 
     const loadTopEmployees = async () => {
         try {
-            const res = await axios.get('https://happy-pet-fomc.onrender.com/api/manager/top-employees', {
+            const res = await axios.get('http://localhost:5000/api/manager/top-employees', {
                 params: { diemSan: filters.diemSan },
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -134,7 +149,7 @@ const ManagerDashboard = () => {
 
     const loadTopProducts = async () => {
         try {
-            const res = await axios.get('https://happy-pet-fomc.onrender.com/api/manager/top-products', {
+            const res = await axios.get('http://localhost:5000/api/manager/top-products', {
                 params: { diemSan: filters.diemSan },
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -146,7 +161,7 @@ const ManagerDashboard = () => {
 
     const loadLowStock = async () => {
         try {
-            const res = await axios.get('https://happy-pet-fomc.onrender.com/api/manager/low-stock-alert', {
+            const res = await axios.get('http://localhost:5000/api/manager/low-stock-alert', {
                 params: { maCN: maCN, nguongCanhBao: filters.nguongCanhBao },
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -158,7 +173,7 @@ const ManagerDashboard = () => {
 
     const loadTopService = async () => {
         try {
-            const res = await axios.get('https://happy-pet-fomc.onrender.com/api/manager/top-service', {
+            const res = await axios.get('http://localhost:5000/api/manager/top-service', {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setStats(prev => ({ ...prev, topService: res.data }));
@@ -169,7 +184,7 @@ const ManagerDashboard = () => {
 
     const loadMembershipStats = async () => {
         try {
-            const res = await axios.get('https://happy-pet-fomc.onrender.com/api/manager/membership-stats', {
+            const res = await axios.get('http://localhost:5000/api/manager/membership-stats', {
                 params: { nam: filters.nam },
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -179,11 +194,51 @@ const ManagerDashboard = () => {
         }
     };
 
+    // ================ EMPLOYEE MANAGEMENT ================
+    const handleAddEmployee = async (e) => {
+        e.preventDefault();
+        try {
+            const res = await axios.post('http://localhost:5000/api/director/employees/add', newEmployee, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            Swal.fire('Thành công!', 'Thêm nhân viên thành công', 'success');
+            loadEmployees();
+            setShowAddForm(false);
+            setNewEmployee({
+                HoTen: '',
+                NgaySinh: '',
+                GioiTinh: 'Nam',
+                ChucVu: 'Nhân viên tiếp tán',
+                NgayVaoLam: dayjs().format('YYYY-MM-DD'),
+                LuongCoBan: '',
+                MaCN: '',
+                TenDangNhap: '',
+                MatKhau: ''
+            });
+        } catch (err) {
+            Swal.fire('Lỗi', err.response?.data?.message || 'Không thể thêm nhân viên', 'error');
+        }
+    };
+
+    const handleUpdateEmployee = async (e) => {
+        e.preventDefault();
+        try {
+            await axios.put(`http://localhost:5000/api/director/employees/${editingEmployee.MaNV}`, editingEmployee, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            Swal.fire('Thành công!', 'Cập nhật thông tin nhân viên thành công', 'success');
+            loadEmployees();
+            setEditingEmployee(null);
+        } catch (err) {
+            Swal.fire('Lỗi', err.response?.data?.message || 'Không thể cập nhật', 'error');
+        }
+    };
+
     // ================ ĐIỀU ĐỘNG NHÂN SỰ ================
     const handleTransferEmployee = async (e) => {
         e.preventDefault();
         try {
-            const res = await axios.post('https://happy-pet-fomc.onrender.com/api/manager/transfer-employee', 
+            const res = await axios.post('http://localhost:5000/api/manager/transfer-employee', 
                 transferData,
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -205,7 +260,7 @@ const ManagerDashboard = () => {
     const handleImportStock = async (e) => {
         e.preventDefault();
         try {
-            const res = await axios.post('https://happy-pet-fomc.onrender.com/api/manager/import-stock',
+            const res = await axios.post('http://localhost:5000/api/manager/import-stock',
                 { ...stockData, MaCN: maCN },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -221,7 +276,7 @@ const ManagerDashboard = () => {
     const handleAddProduct = async (e) => {
         e.preventDefault();
         try {
-            const res = await axios.post('https://happy-pet-fomc.onrender.com/api/manager/add-product',
+            const res = await axios.post('http://localhost:5000/api/manager/add-product',
                 newProductData,
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -259,7 +314,7 @@ const ManagerDashboard = () => {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const res = await axios.post('https://happy-pet-fomc.onrender.com/api/manager/update-membership-ranking',
+                    const res = await axios.post('http://localhost:5000/api/manager/update-membership-ranking',
                         { nam: filters.nam },
                         { headers: { Authorization: `Bearer ${token}` } }
                     );
@@ -507,73 +562,8 @@ const ManagerDashboard = () => {
                         <h2>📦 Quản lý Kho hàng</h2>
                         
                         <div className="stock-grid">
-                            {/* Cảnh báo hết hàng */}
-                            <div className="stat-box">
-                                <h3>⚠️ Cảnh báo hết hàng</h3>
-                                <div className="filter-row">
-                                    <label>Ngưỡng cảnh báo:</label>
-                                    <input 
-                                        type="number" 
-                                        value={filters.nguongCanhBao} 
-                                        onChange={(e) => setFilters({...filters, nguongCanhBao: e.target.value})} 
-                                    />
-                                    <button onClick={loadLowStock}>🔍 Xem</button>
-                                </div>
-                                <table className="stat-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Mã</th>
-                                            <th>Tên mặt hàng</th>
-                                            <th>Loại</th>
-                                            <th>Tồn kho</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {stats.lowStock.map((item, idx) => (
-                                            <tr key={idx} className={item.SoLuongTon === 0 ? 'out-of-stock' : 'low-stock'}>
-                                                <td>{item.MaMatHang}</td>
-                                                <td>{item.TenMatHang}</td>
-                                                <td>{item.LoaiMH}</td>
-                                                <td><strong>{item.SoLuongTon}</strong></td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            {/* Nhập hàng */}
-                            <div className="form-box">
-                                <h3>📥 Nhập hàng vào kho</h3>
-                                <form onSubmit={handleImportStock}>
-                                    <label>Chọn mặt hàng:</label>
-                                    <select 
-                                        value={stockData.MaMatHang} 
-                                        onChange={(e) => setStockData({...stockData, MaMatHang: e.target.value})}
-                                        required
-                                    >
-                                        <option value="">-- Chọn mặt hàng --</option>
-                                        {products.map(p => (
-                                            <option key={p.MaMatHang} value={p.MaMatHang}>
-                                                {p.TenMatHang} ({p.LoaiMH})
-                                            </option>
-                                        ))}
-                                    </select>
-
-                                    <label>Số lượng nhập:</label>
-                                    <input 
-                                        type="number" 
-                                        value={stockData.SoLuongNhap}
-                                        onChange={(e) => setStockData({...stockData, SoLuongNhap: e.target.value})}
-                                        min="1"
-                                        required
-                                    />
-
-                                    <button type="submit" className="btn-primary">📥 Nhập hàng</button>
-                                </form>
-                            </div>
-
                             {/* Thêm mặt hàng mới */}
-                            <div className="form-box">
+                            <div className="form-box" style={{gridColumn: '1 / -1', maxWidth: '600px', margin: '0 auto'}}>
                                 <h3>➕ Thêm mặt hàng mới</h3>
                                 <form onSubmit={handleAddProduct}>
                                     <label>Tên mặt hàng:</label>
@@ -658,7 +648,283 @@ const ManagerDashboard = () => {
                 {/* NHÂN SỰ (GIAO DIỆN MỚI: SPLIT VIEW) */}
                 {activeTab === 'employee' && (
                     <div className="employee-section">
-                        <h2 style={{ marginBottom: '20px' }}>👥 Điều động & Luân chuyển Nhân sự</h2>
+                        <h2 style={{ marginBottom: '20px' }}>👥 Quản lý Nhân sự</h2>
+
+                        {/* PHẦN THÊM/SỬA NHÂN VIÊN */}
+                        <div className="employee-management-box" style={{ marginBottom: '30px', padding: '20px', background: '#f8f9fa', borderRadius: '8px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                                <h3>📋 Danh sách Nhân viên</h3>
+                                <button 
+                                    onClick={() => setShowAddForm(!showAddForm)}
+                                    style={{
+                                        padding: '10px 20px',
+                                        background: showAddForm ? '#dc3545' : '#28a745',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '5px',
+                                        cursor: 'pointer',
+                                        fontSize: '14px',
+                                        fontWeight: 'bold'
+                                    }}
+                                >
+                                    {showAddForm ? '❌ Hủy' : '➕ Thêm nhân viên'}
+                                </button>
+                            </div>
+
+                            {/* FORM THÊM NHÂN VIÊN */}
+                            {showAddForm && (
+                                <form onSubmit={handleAddEmployee} style={{ 
+                                    background: 'white', 
+                                    padding: '20px', 
+                                    borderRadius: '8px', 
+                                    marginBottom: '20px',
+                                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                                        <div>
+                                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Họ tên:</label>
+                                            <input 
+                                                type="text" 
+                                                value={newEmployee.HoTen}
+                                                onChange={(e) => setNewEmployee({...newEmployee, HoTen: e.target.value})}
+                                                required
+                                                style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Ngày sinh:</label>
+                                            <input 
+                                                type="date" 
+                                                value={newEmployee.NgaySinh}
+                                                onChange={(e) => setNewEmployee({...newEmployee, NgaySinh: e.target.value})}
+                                                required
+                                                style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Giới tính:</label>
+                                            <select 
+                                                value={newEmployee.GioiTinh}
+                                                onChange={(e) => setNewEmployee({...newEmployee, GioiTinh: e.target.value})}
+                                                style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                                            >
+                                                <option value="Nam">Nam</option>
+                                                <option value="Nữ">Nữ</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Chức vụ:</label>
+                                            <select 
+                                                value={newEmployee.ChucVu}
+                                                onChange={(e) => setNewEmployee({...newEmployee, ChucVu: e.target.value})}
+                                                style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                                            >
+                                                <option value="Nhân viên tiếp tân">Nhân viên tiếp tân</option>
+                                                <option value="Bác sĩ">Bác sĩ</option>
+                                                <option value="Quản lý chi nhánh">Quản lý chi nhánh</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Ngày vào làm:</label>
+                                            <input 
+                                                type="date" 
+                                                value={newEmployee.NgayVaoLam}
+                                                onChange={(e) => setNewEmployee({...newEmployee, NgayVaoLam: e.target.value})}
+                                                required
+                                                style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Lương cơ bản:</label>
+                                            <input 
+                                                type="number" 
+                                                value={newEmployee.LuongCoBan}
+                                                onChange={(e) => setNewEmployee({...newEmployee, LuongCoBan: e.target.value})}
+                                                required
+                                                min="0"
+                                                style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Chi nhánh:</label>
+                                            <select 
+                                                value={newEmployee.MaCN}
+                                                onChange={(e) => setNewEmployee({...newEmployee, MaCN: e.target.value})}
+                                                required
+                                                style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                                            >
+                                                <option value="">-- Chọn chi nhánh --</option>
+                                                {branches.map(branch => (
+                                                    <option key={branch.MaCN} value={branch.MaCN}>{branch.TenCN}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Tên đăng nhập:</label>
+                                            <input 
+                                                type="text" 
+                                                value={newEmployee.TenDangNhap}
+                                                onChange={(e) => setNewEmployee({...newEmployee, TenDangNhap: e.target.value})}
+                                                required
+                                                style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Mật khẩu:</label>
+                                            <input 
+                                                type="password" 
+                                                value={newEmployee.MatKhau}
+                                                onChange={(e) => setNewEmployee({...newEmployee, MatKhau: e.target.value})}
+                                                required
+                                                style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <button type="submit" style={{
+                                        marginTop: '15px',
+                                        width: '100%',
+                                        padding: '12px',
+                                        background: '#667eea',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '5px',
+                                        fontSize: '16px',
+                                        fontWeight: 'bold',
+                                        cursor: 'pointer'
+                                    }}>
+                                        ✅ Thêm nhân viên
+                                    </button>
+                                </form>
+                            )}
+
+                            {/* BẢNG DANH SÁCH NHÂN VIÊN */}
+                            <div style={{ overflowX: 'auto' }}>
+                                <table className="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Mã NV</th>
+                                            <th>Họ tên</th>
+                                            <th>Ngày sinh</th>
+                                            <th>Giới tính</th>
+                                            <th>Chức vụ</th>
+                                            <th>Lương cơ bản</th>
+                                            <th>Chi nhánh</th>
+                                            <th>Thao tác</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {employees.map(emp => (
+                                            editingEmployee && editingEmployee.MaNV === emp.MaNV ? (
+                                                <tr key={emp.MaNV} style={{ background: '#fff3cd' }}>
+                                                    <td><strong>{emp.MaNV}</strong></td>
+                                                    <td>
+                                                        <input 
+                                                            type="text" 
+                                                            value={editingEmployee.HoTen}
+                                                            onChange={(e) => setEditingEmployee({...editingEmployee, HoTen: e.target.value})}
+                                                            style={{ width: '100%', padding: '5px' }}
+                                                        />
+                                                    </td>
+                                                    <td>
+                                                        <input 
+                                                            type="date" 
+                                                            value={editingEmployee.NgaySinh}
+                                                            onChange={(e) => setEditingEmployee({...editingEmployee, NgaySinh: e.target.value})}
+                                                            style={{ width: '100%', padding: '5px' }}
+                                                        />
+                                                    </td>
+                                                    <td>
+                                                        <select 
+                                                            value={editingEmployee.GioiTinh}
+                                                            onChange={(e) => setEditingEmployee({...editingEmployee, GioiTinh: e.target.value})}
+                                                            style={{ width: '100%', padding: '5px' }}
+                                                        >
+                                                            <option value="Nam">Nam</option>
+                                                            <option value="Nữ">Nữ</option>
+                                                        </select>
+                                                    </td>
+                                                    <td>
+                                                        <select 
+                                                            value={editingEmployee.Chucvu || editingEmployee.ChucVu}
+                                                            onChange={(e) => setEditingEmployee({...editingEmployee, ChucVu: e.target.value})}
+                                                            style={{ width: '100%', padding: '5px' }}
+                                                        >
+                                                            <option value="Nhân viên tiếp tân">Nhân viên tiếp tân</option>
+                                                            <option value="Bác sĩ">Bác sĩ</option>
+                                                            <option value="Quản lý chi nhánh">Quản lý chi nhánh</option>
+                                                        </select>
+                                                    </td>
+                                                    <td>
+                                                        <input 
+                                                            type="number" 
+                                                            value={editingEmployee.LuongCoBan}
+                                                            onChange={(e) => setEditingEmployee({...editingEmployee, LuongCoBan: e.target.value})}
+                                                            style={{ width: '100%', padding: '5px' }}
+                                                        />
+                                                    </td>
+                                                    <td>
+                                                        <select 
+                                                            value={editingEmployee.MaCN}
+                                                            onChange={(e) => setEditingEmployee({...editingEmployee, MaCN: e.target.value})}
+                                                            style={{ width: '100%', padding: '5px' }}
+                                                        >
+                                                            {branches.map(branch => (
+                                                                <option key={branch.MaCN} value={branch.MaCN}>{branch.TenCN}</option>
+                                                            ))}
+                                                        </select>
+                                                    </td>
+                                                    <td style={{ textAlign: 'center' }}>
+                                                        <button onClick={handleUpdateEmployee} style={{ marginRight: '5px', cursor: 'pointer' }}>💾</button>
+                                                        <button onClick={() => setEditingEmployee(null)} style={{ cursor: 'pointer' }}>❌</button>
+                                                    </td>
+                                                </tr>
+                                            ) : (
+                                                <tr key={emp.MaNV}>
+                                                    <td><strong>{emp.MaNV}</strong></td>
+                                                    <td>{emp.HoTen}</td>
+                                                    <td>{dayjs(emp.NgaySinh).format('DD/MM/YYYY')}</td>
+                                                    <td>{emp.GioiTinh}</td>
+                                                    <td>{emp.Chucvu}</td>
+                                                    <td>{emp.LuongCoBan ? parseFloat(emp.LuongCoBan).toLocaleString('vi-VN') : '0'} đ</td>
+                                                    <td>{emp.TenCN}</td>
+                                                    <td style={{ textAlign: 'center' }}>
+                                                        <button 
+                                                            onClick={() => setEditingEmployee({
+                                                                ...emp,
+                                                                NgaySinh: dayjs(emp.NgaySinh).format('YYYY-MM-DD'),
+                                                                ChucVu: emp.Chucvu
+                                                            })}
+                                                            style={{
+                                                                padding: '5px 10px',
+                                                                background: '#667eea',
+                                                                color: 'white',
+                                                                border: 'none',
+                                                                borderRadius: '4px',
+                                                                cursor: 'pointer'
+                                                            }}
+                                                        >
+                                                            ✏️ Sửa
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            )
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        {/* PHẦN ĐIỀU ĐỘNG NHÂN VIÊN */}
+                        <h3 style={{ marginTop: '30px', marginBottom: '15px' }}>🔄 Điều động & Luân chuyển Nhân sự</h3>
 
                         <div className="transfer-container">
                             {/* CỘT TRÁI: DANH SÁCH NHÂN VIÊN */}

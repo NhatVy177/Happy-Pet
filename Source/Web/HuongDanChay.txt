@@ -1,0 +1,13 @@
+Bước 1. Tạo database
+- Create Database và Generate dữ liệu
+- Nếu tạo dữ liệu rồi thì vào folder Generate, chạy File Update Một số bang
+- Dữ liệu test:
+  + Tên dăng nhập: Vào bang TAI_KHOAN lấy tên dang nhap, MK chung là 123456
+Bước 2. Chạy Store Procedure
+- Chạy toàn bộ SP trong file Store Procedured
+Bước 3. Vào file .env (hoặc tạo)
+- Nhập tài khoản, mật khẩu de kết nổi với DB của máy.
+Bước 4. Vào terminal
+- Cd vào thư mục chứa folder happypet - backend. Chạy npm install => chạy node index.js
+- Cd vào thư mục chứa folder happypet - frontend. Chạy npm install => chạy npm start
+

@@ -19,9 +19,8 @@ BEGIN
         GOI.TenGoi,
         GOI.SoMuiTuongUng AS TongSoMui,
         DK.NgayHetHan,
-        -- Đếm số mũi đã tiêm của gói này (TẤT CẢ các mũi: NhacLai=0 và NhacLai=1)
-        -- Lưu ý: Chỉ mũi đầu có record trong DANG_KI_GOI_TIEM, các mũi sau không có
-        -- Nên đếm trực tiếp từ CT_TIEM_VC với MaVaccine, sau thời điểm đăng ký gói
+        -- 🔥 Đếm số mũi đã tiêm của gói này (CHỈ PHIẾU ĐÃ HOÀN TẤT)
+        -- Lý do: Phải đếm đúng số mũi thực tế đã tiêm, không tính phiếu bị hủy
         ISNULL((
             SELECT COUNT(*) 
             FROM CT_TIEM_VC CT
@@ -29,8 +28,8 @@ BEGIN
             INNER JOIN PHIEU_DICH_VU PDV2 ON CT.MaPhieu = PDV2.MaPhieu
             WHERE PTV.MaTC = @MaTC
               AND CT.MaVaccine = DK.MaVaccine
-              AND PDV2.TrangThai = 'DHT'
-              AND PDV2.TG_ThucHienDV >= (SELECT P.TG_LapPhieu FROM PHIEU_DICH_VU P WHERE P.MaPhieu = DK.MaPhieu)
+              AND PDV2.TrangThai = 'DHT' -- CHỈ TÍNH PHIẾU ĐÃ HOÀN TẤT
+              AND PDV2.TG_LapPhieu >= (SELECT P.TG_LapPhieu FROM PHIEU_DICH_VU P WHERE P.MaPhieu = DK.MaPhieu)
         ), 0) AS SoMuiDaTiem,
         -- Số mũi còn lại
         GOI.SoMuiTuongUng - ISNULL((
@@ -40,8 +39,8 @@ BEGIN
             INNER JOIN PHIEU_DICH_VU PDV2 ON CT.MaPhieu = PDV2.MaPhieu
             WHERE PTV.MaTC = @MaTC
               AND CT.MaVaccine = DK.MaVaccine
-              AND PDV2.TrangThai = 'DHT'
-              AND PDV2.TG_ThucHienDV >= (SELECT P.TG_LapPhieu FROM PHIEU_DICH_VU P WHERE P.MaPhieu = DK.MaPhieu)
+              AND PDV2.TrangThai = 'DHT' -- CHỈ TÍNH PHIẾU ĐÃ HOÀN TẤT
+              AND PDV2.TG_LapPhieu >= (SELECT P.TG_LapPhieu FROM PHIEU_DICH_VU P WHERE P.MaPhieu = DK.MaPhieu)
         ), 0) AS SoMuiConLai
     FROM DANG_KI_GOI_TIEM DK
     INNER JOIN GOI_TIEM_VC GOI ON DK.MaGoi = GOI.MaGoi
@@ -50,7 +49,8 @@ BEGIN
     INNER JOIN PHIEU_DICH_VU PDV ON DK.MaPhieu = PDV.MaPhieu
     WHERE PTV.MaTC = @MaTC
       AND DK.HieuLuc = 1
-      AND PDV.TrangThai = 'DHT' -- CHỈ TÍNH PHIẾU ĐÃ HOÀN TẤT (đã tiêm thật)
+      -- 🔥 BỎ điều kiện PDV.TrangThai = 'DHT' để tìm gói dù phiếu đăng ký đã hoàn tất hay chưa
+      -- Vì khách có thể đến lần 2 (phiếu mới chưa hoàn tất) nhưng gói vẫn còn hiệu lực
       AND (DK.NgayHetHan IS NULL OR DK.NgayHetHan > GETDATE())
       -- CHỈ LẤY GÓI CHƯA TIÊM ĐỦ SỐ MŨI QUY ĐỊNH
       AND GOI.SoMuiTuongUng > ISNULL((
@@ -60,10 +60,11 @@ BEGIN
           INNER JOIN PHIEU_DICH_VU PDV3 ON CT.MaPhieu = PDV3.MaPhieu
           WHERE PTV2.MaTC = @MaTC
             AND CT.MaVaccine = DK.MaVaccine
-            AND PDV3.TrangThai = 'DHT'
-            AND PDV3.TG_ThucHienDV >= (SELECT P.TG_LapPhieu FROM PHIEU_DICH_VU P WHERE P.MaPhieu = DK.MaPhieu)
+            AND PDV3.TrangThai = 'DHT' -- CHỈ TÍNH PHIẾU ĐÃ HOÀN TẤT
+            AND PDV3.TG_LapPhieu >= (SELECT P.TG_LapPhieu FROM PHIEU_DICH_VU P WHERE P.MaPhieu = DK.MaPhieu)
       ), 0)
-    ORDER BY DK.MaPhieu DESC;
+    -- 🔥 LẤY GÓI CŨ NHẤT (đăng ký đầu tiên) để đếm đủ số mũi từ đầu
+    ORDER BY DK.MaPhieu ASC;
     
 END;
 GO

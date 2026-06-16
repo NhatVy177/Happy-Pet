@@ -32,8 +32,20 @@ const Navbar = () => {
     const isInternalUser = isStaff || isManagerGroup || userRole === 'Bác sĩ thú y';
 
     // --- XÁC ĐỊNH LINK LOGO ---
-    // Sếp thì về Dashboard quản lý, Nhân viên về Dashboard nhân viên, Khách về Trang chủ
-    const logoLink = isManagerGroup ? '/manager/dashboard' : (isInternalUser ? '/employee/dashboard' : '/');
+    // Giám đốc → /manager/dashboard
+    // Quản lý → /manager/dashboard  
+    // Bác sĩ → /doctor/queue
+    // Nhân viên → /employee/dashboard
+    // Khách hàng → /
+    const logoLink = isDirector
+        ? '/manager/dashboard'
+        : (isManager && userRole === 'Quản lý chi nhánh'
+            ? '/branch-manager/dashboard'
+            : (isManager
+                ? '/manager/dashboard'
+                : (userRole === 'Bác sĩ thú y'
+                    ? '/doctor/dashboard'
+                    : (isInternalUser ? '/employee/dashboard' : '/'))));
 
     return (
         <nav className="navbar">
@@ -66,7 +78,7 @@ const Navbar = () => {
                                     <Link to="/products" className="nav-item">
                                         <FaBoxOpen /> Sản Phẩm
                                     </Link>
-                                    <Link to="/recheck-reminder" className="nav-item">
+                                    <Link to="/employee/recheck-reminder" className="nav-item">
                                         <FaBell /> Nhắc tái khám
                                     </Link>
                                 </div>
@@ -185,7 +197,8 @@ const Navbar = () => {
                             <Link to="/services" className="nav-item"><FaStethoscope /> Dịch vụ</Link>
                             <Link to="/products" className="nav-item"><FaStore /> Cửa hàng</Link>
                             {userName && <Link to="/my-pets" className="nav-item"><FaPaw /> Thú cưng</Link>}
-                            {userName && <Link to="/booking" className="nav-item"><FaCalendarAlt /> Đặt lịch</Link>}
+                            {/* 🔥 Chỉ khách hàng mới được đặt lịch, nhân viên không được */}
+                            {userName && !isInternalUser && <Link to="/booking" className="nav-item"><FaCalendarAlt /> Đặt lịch</Link>}
                         </div>
 
                         <div className="nav-user-actions">

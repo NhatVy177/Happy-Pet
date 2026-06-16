@@ -94,7 +94,7 @@ const History = () => {
         if (!window.confirm("Xác nhận bạn đã nhận hàng?")) return;
         try {
             const token = localStorage.getItem('token');
-            await axios.post('https://happy-pet-fomc.onrender.com/api/orders/confirm-received', 
+            await axios.post('http://localhost:5000/api/orders/confirm-received', 
                 { MaPhieu: maPhieu }, 
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -170,6 +170,15 @@ const History = () => {
     const filteredOrders = groupedOrders.filter(order => {
         const matchesType = isBookingPage ? order.LoaiPhieu !== 'MH' : order.LoaiPhieu === 'MH';
         if (!matchesType) return false;
+        
+        // 🔥 BỔ SUNG: Nếu là trang booking, chỉ hiện phiếu đã hoàn tất (DHT hoặc HT)
+        if (isBookingPage) {
+            const st = String(order.TrangThai).trim().toUpperCase();
+            if (!['DHT', 'HT'].includes(st)) {
+                return false; // Loại bỏ phiếu chưa hoàn tất
+            }
+        }
+        
         const st = String(order.TrangThai).trim().toUpperCase();
         if (statusFilter === 'ALL') return true;
         if (statusFilter === 'WAITING') return st === 'DD';
@@ -182,7 +191,7 @@ const History = () => {
     const handleReviewSubmit = async (reviewData) => {
         try {
             const token = localStorage.getItem('token'); 
-            const endpoint = reviewModal.type === 'SERVICE' ? 'https://happy-pet-fomc.onrender.com/api/reviews/service' : 'https://happy-pet-fomc.onrender.com/api/reviews/product';
+            const endpoint = reviewModal.type === 'SERVICE' ? 'http://localhost:5000/api/reviews/service' : 'http://localhost:5000/api/reviews/product';
             await axios.post(endpoint, reviewData, { headers: { Authorization: `Bearer ${token}` } });
             alert('Cảm ơn bạn đã đánh giá!'); 
             setReviewModal(null);
@@ -300,34 +309,6 @@ const History = () => {
                                                     style={{padding:'6px 12px', backgroundColor:'#fff', border:'1px solid #e74c3c', color:'#e74c3c', borderRadius:'5px', cursor:'pointer', fontWeight:'bold', fontSize:'12px'}}
                                                 >
                                                     ✖ Hủy
-                                                </button>
-                                            );
-                                        })()}
-
-                                        {String(order.TrangThai).trim().toUpperCase() === 'DTH' && !isServiceTicket && (() => {
-                                            // NgayMuonNhan thực chất là TG_ThucHienDV (lưu ngày muốn nhận)
-                                            const deliveryDate = dayjs(order.NgayMuonNhan || order.TG_ThucHienDV);
-                                            const today = dayjs();
-                                            const canReceive = deliveryDate.isSame(today, 'day') || deliveryDate.isBefore(today, 'day');
-                                            
-                                            return (
-                                                <button 
-                                                    onClick={() => handleReceived(order.MaPhieu)}
-                                                    disabled={!canReceive}
-                                                    style={{
-                                                        padding:'6px 12px', 
-                                                        backgroundColor: canReceive ? '#27ae60' : '#ccc', 
-                                                        border:'none', 
-                                                        color:'#fff', 
-                                                        borderRadius:'5px', 
-                                                        cursor: canReceive ? 'pointer' : 'not-allowed', 
-                                                        fontWeight:'bold', 
-                                                        fontSize:'12px',
-                                                        opacity: canReceive ? 1 : 0.6
-                                                    }}
-                                                    title={canReceive ? 'Xác nhận đã nhận hàng' : `Chỉ được nhận từ ngày ${deliveryDate.format('DD/MM/YYYY')}`}
-                                                >
-                                                    ✅ Đã nhận hàng
                                                 </button>
                                             );
                                         })()}

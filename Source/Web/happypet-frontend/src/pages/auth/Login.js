@@ -18,7 +18,7 @@ const Login = () => {
         setLoading(true);
         setError('');
         try {
-            const res = await axios.post('https://happy-pet-fomc.onrender.com/api/auth/login', formData);
+            const res = await axios.post('http://localhost:5000/api/auth/login', formData);
             
             localStorage.removeItem('currentOrderCode');
             localStorage.removeItem('shipBranch');
@@ -68,19 +68,32 @@ const Login = () => {
     const handleGoogleLoginSuccess = async (googleToken) => {
         setLoading(true);
         try {
-            const res = await axios.post('https://happy-pet-fomc.onrender.com/api/auth/google-login', { token: googleToken });
+            const res = await axios.post('http://localhost:5000/api/auth/google-login', { token: googleToken });
 
             if (res.data.isNewUser) {
                 navigate('/complete-profile', { 
                     state: { email: res.data.email, name: res.data.name, photo: res.data.photo } 
                 });
             } else {
+                // 1. Lưu Token & Role
                 localStorage.setItem('token', res.data.token);
                 localStorage.setItem('role', res.data.Role);
-                localStorage.setItem('user', JSON.stringify({ role: res.data.Role }));
+
+                // 2. [QUAN TRỌNG] Lưu thêm HoTen và MaUser để Header nhận diện
+                localStorage.setItem('hoten', res.data.HoTen);
+                localStorage.setItem('MaUser', res.data.MaUser);
+
+                // 3. Cập nhật object 'user' đầy đủ thông tin
+                localStorage.setItem('user', JSON.stringify({ 
+                    role: res.data.Role, 
+                    hoten: res.data.HoTen,
+                    MaUser: res.data.MaUser
+                }));
                 
                 toast.success("Đăng nhập Google thành công!");
-                navigate('/');
+                
+                // 4. Dùng window.location.href để reload lại trang -> Header mới cập nhật được trạng thái
+                window.location.href = '/';
             }
         } catch (err) {
             setError("Lỗi xử lý Google Login");

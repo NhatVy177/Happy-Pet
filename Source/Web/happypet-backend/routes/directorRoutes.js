@@ -35,4 +35,14 @@ router.post('/members/update-ranks', verifyDirector, directorController.updateMe
 // Thống kê thú cưng (toàn hệ thống)
 router.get('/pets/by-type', verifyDirector, directorController.getPetsByType);
 
+// 🔥 THỐNG KÊ MỚI: Doanh thu bác sĩ, lượt khám, bán hàng
+router.get('/revenue/by-doctor', verifyDirector, directorController.getRevenueByDoctor);
+router.get('/stats/exams', verifyDirector, directorController.getExamStats);
+router.get('/stats/product-sales', verifyDirector, directorController.getProductSalesStats);
+
+// 🔥 QUẢN LÝ NHÂN VIÊN (TOÀN HỆ THỐNG)
+router.get('/employees', verifyDirector, directorController.getAllEmployees);
+router.post('/employees/add', verifyDirector, directorController.addEmployee);
+router.put('/employees/:MaNV', verifyDirector, directorController.updateEmployee);
+
 module.exports = router;

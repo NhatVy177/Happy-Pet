@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -30,6 +31,7 @@ const OrderManagement = () => {
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [orderDetails, setOrderDetails] = useState([]);
     const [loadingDetail, setLoadingDetail] = useState(false);
+    const [orderTypeTab, setOrderTypeTab] = useState('all'); // all, online, offline
     
     console.log('📌 STATE HIỆN TẠI - timeTab:', timeTab, 'statusTab:', statusTab, 'orders.length:', orders.length); 
 
@@ -40,24 +42,17 @@ const OrderManagement = () => {
 
         switch (tab) {
             case 'today':
-                // Hôm nay
                 start = today;
                 end = today;
                 break;
-                
             case 'next3':
-                // 3 ngày tới (tính cả hôm nay)
                 start = today;
-                end = today.add(2, 'day'); // add 2 thôi để tổng là 3 ngày
+                end = today.add(2, 'day');
                 break;
-                
             case 'week':
-                // TUẦN NÀY: Từ Thứ 2 đầu tuần đến Chủ nhật cuối tuần (hoặc hôm nay nếu chưa hết tuần)
-                start = today.startOf('isoWeek'); // Thứ 2 đầu tuần
-                end = today; // Đến hôm nay thôi (không lấy tương lai)
-                console.log('📆 WEEK RANGE:', start.format('YYYY-MM-DD'), '->', end.format('YYYY-MM-DD'));
+                start = today.startOf('isoWeek');
+                end = today;
                 break;
-                
             default:
                 start = today;
                 end = today;
@@ -70,39 +65,25 @@ const OrderManagement = () => {
     };
 
     const fetchOrders = async () => {
-        console.log('🔥 FETCH ORDERS BẮT ĐẦU - timeTab:', timeTab);
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
             const { tuNgay, denNgay } = getDateRange(timeTab);
-            console.log('📅 DATE RANGE:', tuNgay, '->', denNgay);
 
-            const res = await axios.get('https://happy-pet-fomc.onrender.com/api/employee/appointments', {
+            const res = await axios.get('http://localhost:5000/api/employee/appointments', {
                 headers: { Authorization: `Bearer ${token}` },
                 params: { status: 'ALL', tuNgay, denNgay }
             });
 
-            console.log('📦 DATA TRẢ VỀ:', res.data);
-            console.log('📦 SỐ LƯỢNG TRẢ VỀ:', res.data?.length);
-            if (res.data && res.data.length > 0) {
-                console.log('📦 SAMPLE:', JSON.stringify(res.data[0], null, 2));
-            }
-
-            // Lọc DV Mua hàng
-            const orderTickets = res.data.filter(item => item.LoaiDichVu === 'Dịch vụ khác');
-            console.log('📦 SAU LỌC MUA HÀNG:', orderTickets.length);
-            if (orderTickets.length > 0) {
-                console.log('📦 SAMPLE SAU LỌC:', JSON.stringify(orderTickets[0], null, 2));
-                console.log('📦 DiaChi:', orderTickets[0].DiaChi);
-                console.log('📦 TongThanhTien:', orderTickets[0].TongThanhTien);
-            } else {
-                console.warn('⚠️ KHÔNG CÓ ĐƠN NÀO SAU KHI LỌC!');
-            }
+            // Lọc đơn hàng (cả offline và online) + BỎ ĐƠN CÓ "Nội thành"
+            const orderTickets = res.data.filter(item => {
+                const isDichVuKhac = item.LoaiDichVu === 'Dịch vụ khác' || item.MaHD;
+                const khongNoiThanh = !(item.DiaChi || '').includes('Nội thành');
+                return isDichVuKhac && khongNoiThanh;
+            });
             setOrders(orderTickets);
-            console.log('✅ ĐÃ SET STATE - orders.length:', orderTickets.length);
         } catch (error) {
             console.error('❌ LỖI FETCH:', error);
-            console.error('❌ LỖI CHI TIẾT:', error.response?.data);
         } finally {
             setLoading(false);
         }
@@ -120,15 +101,17 @@ const OrderManagement = () => {
         
         try {
             const token = localStorage.getItem('token');
-            const maPhieu = order.MaPhieu.trim(); // Trim để bỏ khoảng trắng
-            console.log('🔍 Calling API:', `https://happy-pet-fomc.onrender.com/api/employee/order-detail/${maPhieu}`);
+            const maPhieu = order.MaPhieu.trim();
             
-            const res = await axios.get(`https://happy-pet-fomc.onrender.com/api/employee/order-detail/${maPhieu}`, {
+            const res = await axios.get(`http://localhost:5000/api/employee/order-detail/${maPhieu}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             
-            console.log('📦 Chi tiết đơn hàng:', res.data);
-            setOrderDetails(res.data);
+            setSelectedOrder({
+                ...order,
+                ...res.data.orderInfo
+            });
+            setOrderDetails(res.data.products);
         } catch (error) {
             console.error('Lỗi lấy chi tiết:', error);
             Swal.fire('Lỗi', error.response?.data?.message || 'Không thể tải chi tiết đơn hàng!', 'error');
@@ -138,23 +121,72 @@ const OrderManagement = () => {
     };
 
     const filteredOrders = useMemo(() => {
-        if (statusTab === 'all') return orders;
-        if (statusTab === 'HT_GROUP') return orders.filter(o => o.TrangThai === 'DHT' || o.TrangThai === 'HT');
-        return orders.filter(item => item.TrangThai === statusTab);
-    }, [orders, statusTab]);
+        let filtered = orders;
+        
+        // 1. Lọc theo loại đơn (online/offline)
+        if (orderTypeTab === 'online') {
+            filtered = filtered.filter(o => o.MaHD);
+        } else if (orderTypeTab === 'offline') {
+            filtered = filtered.filter(o => !o.MaHD);
+        }
+        
+        // 2. Lọc theo trạng thái
+        if (statusTab === 'all') return filtered;
+        if (statusTab === 'HT_GROUP') return filtered.filter(o => o.TrangThai === 'DHT' || o.TrangThai === 'HT');
+        return filtered.filter(item => item.TrangThai === statusTab);
+    }, [orders, statusTab, orderTypeTab]);
 
     const countStatus = (status) => {
-        if (status === 'HT_GROUP') return orders.filter(o => o.TrangThai === 'DHT' || o.TrangThai === 'HT').length;
-        return orders.filter(o => o.TrangThai === status).length;
+        let filtered = orders;
+        
+        if (orderTypeTab === 'online') {
+            filtered = filtered.filter(o => o.MaHD);
+        } else if (orderTypeTab === 'offline') {
+            filtered = filtered.filter(o => !o.MaHD);
+        }
+        
+        if (status === 'HT_GROUP') return filtered.filter(o => o.TrangThai === 'DHT' || o.TrangThai === 'HT').length;
+        return filtered.filter(o => o.TrangThai === status).length;
     };
 
+    // 🔥 BƯỚC 1: CHECK-IN ĐƠN HÀNG (DD → DTH)
+    const handleCheckInOrder = async (maPhieu) => {
+        const confirm = await Swal.fire({
+            title: 'Xác nhận đơn hàng?',
+            text: 'Đơn hàng sẽ chuyển sang trạng thái Đang chuẩn bị giao.',
+            icon: 'info',
+            showCancelButton: true,
+            confirmButtonColor: '#3498db',
+            confirmButtonText: 'Check-in ngay',
+            cancelButtonText: 'Hủy bỏ'
+        });
+
+        if (!confirm.isConfirmed) return;
+
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('token');
+            await axios.post('http://localhost:5000/api/employee/check-in-order', 
+                { MaPhieu: maPhieu }, 
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            Swal.fire('Thành công', 'Đã xác nhận đơn hàng! Đang chuẩn bị giao đến khách.', 'success');
+            fetchOrders();
+        } catch (error) {
+            Swal.fire('Lỗi', error.response?.data?.message || 'Thất bại', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // 🔥 BƯỚC 2: XÁC NHẬN ĐÃ GIAO (DTH → HT + Cộng điểm)
     const handleConfirmDelivery = async (maPhieu) => {
         const confirm = await Swal.fire({
             title: 'Xác nhận đã giao?',
             text: 'Đơn hàng sẽ được chuyển sang hoàn tất và cộng điểm cho khách.',
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#d7852b', // Màu cam
+            confirmButtonColor: '#27ae60',
             confirmButtonText: 'Xác nhận ngay',
             cancelButtonText: 'Hủy bỏ'
         });
@@ -164,8 +196,11 @@ const OrderManagement = () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            await axios.post('https://happy-pet-fomc.onrender.com/api/employee/confirm-delivery', { MaPhieu: maPhieu }, { headers: { Authorization: `Bearer ${token}` } });
-            Swal.fire('Thành công', 'Đơn hàng đã hoàn tất!', 'success');
+            await axios.post('http://localhost:5000/api/employee/confirm-delivery', 
+                { MaPhieu: maPhieu }, 
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            Swal.fire('Thành công', 'Đơn hàng đã hoàn tất và cộng điểm cho khách!', 'success');
             fetchOrders();
         } catch (error) {
             Swal.fire('Lỗi', error.response?.data?.message || 'Thất bại', 'error');
@@ -176,7 +211,6 @@ const OrderManagement = () => {
 
     const formatMoney = (val) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val || 0);
 
-    // --- PHẦN RENDER STATUS ĐƯỢC LÀM ĐẸP ---
     const renderStatus = (status) => {
         switch (status) {
             case 'DD': 
@@ -195,42 +229,119 @@ const OrderManagement = () => {
 
     return (
         <div className="dashboard-container">
-            <h2 className="dashboard-title">📦 Quản Lý Đơn Hàng Online</h2>
-            <p className="dashboard-subtitle">Theo dõi, duyệt đơn và xác nhận giao hàng cho khách.</p>
-            
-            {/* 1. TABS THỜI GIAN (Style Nút Tròn Cam) */}
-            <div className="tabs-container">
-                <button className={`tab-btn ${timeTab === 'today' ? 'active' : ''}`} onClick={() => setTimeTab('today')}>
-                    📅 Hôm nay
-                </button>
-                <button className={`tab-btn ${timeTab === 'next3' ? 'active' : ''}`} onClick={() => setTimeTab('next3')}>
-                    🗓️ 3 ngày tới
-                </button>
-                <button className={`tab-btn ${timeTab === 'week' ? 'active' : ''}`} onClick={() => setTimeTab('week')}>
-                    📆 Tuần này
-                </button>
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
+                <div>
+                    <h2 className="dashboard-title">📦 Quản Lý Đơn Hàng</h2>
+                    <p className="dashboard-subtitle">Theo dõi, duyệt đơn và xác nhận giao hàng cho khách.</p>
+                </div>
             </div>
+            
+            {/* 🔥 THANH FILTER GỌN GÀNG (STYLE MỚI) */}
+            <div style={{display: 'flex', gap: '15px', marginBottom: '20px', alignItems: 'center', flexWrap: 'wrap'}}>
+                
+                {/* 1. SEGMENTED CONTROL CHO LOẠI ĐƠN */}
+                <div style={{
+                    display: 'flex', 
+                    border: '1px solid #ddd', 
+                    borderRadius: '6px', 
+                    overflow: 'hidden',
+                    backgroundColor: '#f8f9fa'
+                }}>
+                    <button 
+                        onClick={() => setOrderTypeTab('all')}
+                        style={{
+                            border: 'none',
+                            padding: '8px 16px',
+                            cursor: 'pointer',
+                            backgroundColor: orderTypeTab === 'all' ? '#e9ecef' : 'transparent',
+                            color: orderTypeTab === 'all' ? '#495057' : '#6c757d',
+                            fontWeight: orderTypeTab === 'all' ? '600' : '400',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        Tất cả
+                    </button>
+                    <div style={{width: '1px', backgroundColor: '#ddd'}}></div> {/* Separator */}
+                    <button 
+                        onClick={() => setOrderTypeTab('online')}
+                        style={{
+                            border: 'none',
+                            padding: '8px 16px',
+                            cursor: 'pointer',
+                            backgroundColor: orderTypeTab === 'online' ? '#e9ecef' : 'transparent',
+                            color: orderTypeTab === 'online' ? '#495057' : '#6c757d',
+                            fontWeight: orderTypeTab === 'online' ? '600' : '400',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        Online
+                    </button>
+                    <div style={{width: '1px', backgroundColor: '#ddd'}}></div> {/* Separator */}
+                    <button 
+                        onClick={() => setOrderTypeTab('offline')}
+                        style={{
+                            border: 'none',
+                            padding: '8px 16px',
+                            cursor: 'pointer',
+                            backgroundColor: orderTypeTab === 'offline' ? '#e9ecef' : 'transparent',
+                            color: orderTypeTab === 'offline' ? '#495057' : '#6c757d',
+                            fontWeight: orderTypeTab === 'offline' ? '600' : '400',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        Tại quầy
+                    </button>
+                </div>
 
-            {/* 2. FILTER TRẠNG THÁI (Style Pill/Thuốc) */}
+                {/* 2. DROPDOWN CHO THỜI GIAN */}
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    border: '1px solid #ddd',
+                    borderRadius: '6px',
+                    padding: '6px 12px',
+                    backgroundColor: 'white'
+                }}>
+                    <span style={{marginRight: '8px', fontSize: '1rem', color: '#6c757d'}}>📅</span>
+                    <select 
+                        value={timeTab}
+                        onChange={(e) => setTimeTab(e.target.value)}
+                        style={{
+                            border: 'none',
+                            outline: 'none',
+                            color: '#495057',
+                            fontSize: '14px',
+                            cursor: 'pointer',
+                            backgroundColor: 'transparent'
+                        }}
+                    >
+                        <option value="today">Thời gian: Hôm nay</option>
+                        <option value="next3">Thời gian: 3 ngày tới</option>
+                        <option value="week">Thời gian: Tuần này</option>
+                    </select>
+                </div>
+            </div>
+            
+            {/* 3. FILTER TRẠNG THÁI (GIỮ NGUYÊN) */}
             <div className="tab-sub-filter">
                 <div className={`filter-pill ${statusTab === 'all' ? 'active' : ''}`} onClick={() => setStatusTab('all')}>
                     Tất cả <span className="badge-count">{orders.length}</span>
                 </div>
                 <div className={`filter-pill ${statusTab === 'DD' ? 'active' : ''}`} onClick={() => setStatusTab('DD')}>
-                    Chờ duyệt <span className="badge-count">{countStatus('DD')}</span>
+                    ⏳ Chờ xác nhận <span className="badge-count">{countStatus('DD')}</span>
                 </div>
                 <div className={`filter-pill ${statusTab === 'DTH' ? 'active' : ''}`} onClick={() => setStatusTab('DTH')}>
-                    Đang giao <span className="badge-count">{countStatus('DTH')}</span>
+                    🚚 Đang giao <span className="badge-count">{countStatus('DTH')}</span>
                 </div>
                 <div className={`filter-pill ${statusTab === 'HT_GROUP' ? 'active' : ''}`} onClick={() => setStatusTab('HT_GROUP')}>
-                    Hoàn tất <span className="badge-count">{countStatus('HT_GROUP')}</span>
+                    ✅ Hoàn tất <span className="badge-count">{countStatus('HT_GROUP')}</span>
                 </div>
-                 <div className={`filter-pill ${statusTab === 'DH' ? 'active' : ''}`} onClick={() => setStatusTab('DH')}>
-                    Đã hủy <span className="badge-count">{countStatus('DH')}</span>
+                    <div className={`filter-pill ${statusTab === 'DH' ? 'active' : ''}`} onClick={() => setStatusTab('DH')}>
+                    ❌ Đã hủy <span className="badge-count">{countStatus('DH')}</span>
                 </div>
             </div>
 
-            {/* 3. BẢNG DỮ LIỆU (Style Card Đổ Bóng) */}
+            {/* 4. BẢNG DỮ LIỆU */}
             <div className="table-card">
                 <table className="booking-table">
                     <thead>
@@ -265,7 +376,7 @@ const OrderManagement = () => {
                                     </td>
                                     <td>
                                         <div style={{fontWeight: '500', color: '#d7852b'}}>{dayjs(item.TG_ThucHienDV).format('DD/MM/YYYY')}</div>
-                                        <div className="text-muted">09:00</div>
+                                        {!item.MaHD && <div className="text-muted">{dayjs(item.TG_ThucHienDV).format('HH:mm')}</div>}
                                     </td>
                                     <td style={{fontWeight: 'bold', color: '#27ae60', fontSize: '1.05rem'}}>
                                         {formatMoney(item.TongThanhTien || item.TongTien || 0)}
@@ -273,41 +384,73 @@ const OrderManagement = () => {
                                     <td>{renderStatus(item.TrangThai)}</td>
                                     <td>
                                         <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
-                                            <button 
-                                                className="btn-view-detail"
-                                                onClick={() => viewOrderDetail(item)}
-                                                style={{
-                                                    padding: '6px 12px',
-                                                    background: '#3498db',
-                                                    color: 'white',
-                                                    border: 'none',
-                                                    borderRadius: '4px',
-                                                    cursor: 'pointer',
-                                                    fontSize: '13px'
-                                                }}
-                                            >
-                                                📦 Chi tiết
-                                            </button>
-                                            
-                                            {item.TrangThai === 'DTH' && (() => {
-                                                const deliveryDate = dayjs(item.TG_ThucHienDV);
-                                                const today = dayjs();
-                                                const canDeliver = deliveryDate.isSame(today, 'day') || deliveryDate.isBefore(today, 'day');
-                                                
-                                                return (
+                                            {item.MaHD ? (
+                                                <>
+                                                    {item.TrangThai === 'DD' && (
+                                                        <button 
+                                                            onClick={() => handleCheckInOrder(item.MaPhieu)}
+                                                            style={{
+                                                                padding: '8px 16px',
+                                                                background: '#3498db',
+                                                                color: 'white',
+                                                                border: 'none',
+                                                                borderRadius: '6px',
+                                                                cursor: 'pointer',
+                                                                fontWeight: '600'
+                                                            }}
+                                                        >
+                                                            ✅ Check-in
+                                                        </button>
+                                                    )}
+                                                    {item.TrangThai === 'DTH' && (
+                                                        <button 
+                                                            onClick={() => handleConfirmDelivery(item.MaPhieu)}
+                                                            style={{
+                                                                padding: '8px 16px',
+                                                                background: '#27ae60',
+                                                                color: 'white',
+                                                                border: 'none',
+                                                                borderRadius: '6px',
+                                                                cursor: 'pointer',
+                                                                fontWeight: '600'
+                                                            }}
+                                                            title='Xác nhận khách đã nhận hàng'
+                                                        >
+                                                            📦 Xác nhận giao
+                                                        </button>
+                                                    )}
                                                     <button 
-                                                        className="btn-check-in" 
-                                                        onClick={() => handleConfirmDelivery(item.MaPhieu)}
-                                                        disabled={!canDeliver}
-                                                        style={{ opacity: canDeliver ? 1 : 0.5, cursor: canDeliver ? 'pointer' : 'not-allowed' }}
-                                                        title={canDeliver ? 'Click để xác nhận' : `Chỉ được xác nhận từ ngày ${deliveryDate.format('DD/MM/YYYY')}`}
+                                                        className="btn-view-detail"
+                                                        onClick={() => viewOrderDetail(item)}
+                                                        style={{
+                                                            padding: '6px 12px',
+                                                            background: '#95a5a6',
+                                                            color: 'white',
+                                                            border: 'none',
+                                                            borderRadius: '4px',
+                                                            cursor: 'pointer'
+                                                        }}
                                                     >
-                                                        Xác nhận giao
+                                                        📋 Chi tiết
                                                     </button>
-                                                );
-                                            })()}
-                                            
-                                            {item.TrangThai === 'DD' && <span className="text-muted" style={{fontStyle:'italic'}}>Chờ Check-in</span>}
+                                                </>
+                                            ) : (
+                                                <button 
+                                                    className="btn-view-detail"
+                                                    onClick={() => viewOrderDetail(item)}
+                                                    style={{
+                                                        padding: '6px 12px',
+                                                        background: '#3498db',
+                                                        color: 'white',
+                                                        border: 'none',
+                                                        borderRadius: '4px',
+                                                        cursor: 'pointer',
+                                                        fontSize: '13px'
+                                                    }}
+                                                >
+                                                    📦 Chi tiết
+                                                </button>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
@@ -317,7 +460,6 @@ const OrderManagement = () => {
                 </table>
             </div>
 
-            {/* MODAL XEM CHI TIẾT ĐƠN HÀNG (GIAO DIỆN MỚI) */}
             {/* MODAL XEM CHI TIẾT ĐƠN HÀNG */}
             {showDetailModal && (
                 <div className="modal-overlay" onClick={() => setShowDetailModal(false)}>
@@ -325,12 +467,12 @@ const OrderManagement = () => {
                         className="modal-content" 
                         onClick={(e) => e.stopPropagation()} 
                         style={{
-                            width: '95%',         /* Chiếm 95% màn hình trên mobile */
-                            maxWidth: '1000px',   /* Rộng tối đa 1000px trên máy tính (ĐÃ SỬA) */
+                            width: '95%',
+                            maxWidth: '1000px',
                             borderRadius: '16px',
-                            padding: '30px',      /* Tăng khoảng cách lề cho thoáng */
-                            maxHeight: '90vh',    /* Tránh bị tràn màn hình dọc */
-                            overflowY: 'auto'     /* Cho phép cuộn nếu danh sách quá dài */
+                            padding: '30px',
+                            maxHeight: '90vh',
+                            overflowY: 'auto'
                         }}
                     >
                         

@@ -26,9 +26,11 @@ BEGIN
         RTRIM(ISNULL(P.TrangThai, 'DD')) AS TrangThai,
         KH.SDT,
         HTT.DiaChiGiaoHang AS DiaChi,
-        HTT.TongThanhTien AS TongThanhTien,
+        ISNULL(HTT.TongThanhTien, HDTT.TongThanhTienSC) AS TongThanhTien, -- 🔥 LẤY TỪ HD_TRUC_TUYEN HOẶC HD_TRUC_TIEP
         HTT.MaPhieu AS MaHD,  -- Để biết có HD_TRUC_TUYEN không
         HDTT.PhuongThucTT AS PhuongThucTT, -- 🔥 LẤY PHƯƠNG THỨC THANH TOÁN ĐỂ BIẾT ĐÃ XUẤT HÓA ĐƠN CHƯA
+        RTRIM(HDTT.MaNV) AS MaNV_XuatHD, -- 🔥 MÃ NHÂN VIÊN XUẤT HÓA ĐƠN (từ HD_TRUC_TIEP)
+        RTRIM(P.MaNV) AS MaNV_BacSi, -- 🔥 MÃ BÁC SĨ (từ PHIEU_DICH_VU) - đổi tên để phân biệt
         U_BacSi.HoTen AS TenBacSi -- 🔥 LẤY TÊN BÁC SĨ ĐÃ GÁN
     FROM PHIEU_DICH_VU P
     JOIN KHACH_HANG KH ON P.MaKH = KH.MaKH
@@ -41,7 +43,14 @@ BEGIN
     LEFT JOIN HD_TRUC_TIEP HDTT ON P.MaPhieu = HDTT.MaPhieu -- 🔥 JOIN ĐỂ LẤY PHƯƠNG THỨC TT
     WHERE P.MaCN = @MaCN 
       AND (@TrangThai IS NULL OR RTRIM(P.TrangThai) = @TrangThai)
-      AND CAST(P.TG_ThucHienDV AS DATE) BETWEEN @TuNgay AND @DenNgay 
+      AND (
+          -- 🔥 LOGIC MỚI: Hiện đơn nếu thỏa 1 trong 2:
+          -- 1. Ngày ĐẶT nằm trong khoảng (đơn mới đặt cần xử lý)
+          -- 2. Ngày MUỐN NHẬN nằm trong khoảng (đơn đến hạn giao)
+          CAST(P.TG_LapPhieu AS DATE) BETWEEN @TuNgay AND @DenNgay
+          OR
+          CAST(P.TG_ThucHienDV AS DATE) BETWEEN @TuNgay AND @DenNgay
+      ) 
       AND (
           -- Cho phép các role nhân viên xem hết
           (RTRIM(@Role_Xem) IN (N'Nhân viên Tiếp tân', N'Nhân viên bán hàng', N'Quản lý chi nhánh', N'Admin'))

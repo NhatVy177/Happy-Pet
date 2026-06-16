@@ -13,7 +13,7 @@ const ForgotPassword = () => {
 
   const handleCheckUser = async () => {
     try {
-      const res = await axios.get(`https://happy-pet-fomc.onrender.com/api/auth/check-account?TenDangNhap=${tenTK}`);
+      const res = await axios.get(`http://localhost:5000/api/auth/check-account?TenDangNhap=${tenTK}`);
       setMasked(res.data.maskedPhone);
       // Reset các giá trị nhập trước khi qua bước 2 để tránh bị dính dữ liệu cũ
       setSdtFull('');
@@ -37,7 +37,7 @@ const ForgotPassword = () => {
     }
 
     try {
-      await axios.post('https://happy-pet-fomc.onrender.com/api/auth/forgot-password', {
+      await axios.post('http://localhost:5000/api/auth/forgot-password', {
         TenDangNhap: tenTK,
         SdtNhapVao: sdtFull,
         MatKhauMoi: newPass

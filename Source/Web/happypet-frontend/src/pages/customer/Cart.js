@@ -14,14 +14,22 @@ const Cart = () => {
     })();
 
     const [maPhieu, setMaPhieu] = useState(initialOrderCode);
-    const [cartInfo, setCartInfo] = useState({ TongThanhTien: 0, PhiGiaoHang: 0, TongThanhTienSC: 0, TongDiemTichLuy: 0 });
+    const [cartInfo, setCartInfo] = useState({ 
+        TongThanhTien: 0, 
+        PhiGiaoHang: 0, 
+        TongThanhTienSC: 0, 
+        TongDiemTichLuy: 0,
+        XepHang: '',
+        GiamGiaThanhVien: 0
+    });
     const [cartDetails, setCartDetails] = useState([]);
     const [diemDung, setDiemDung] = useState(0);
     const [loading, setLoading] = useState(true);
     
     const [ngayNhan, setNgayNhan] = useState('');
     const [diaChi, setDiaChi] = useState(''); 
-    const [phiShip, setPhiShip] = useState(0); 
+    const [phiShip, setPhiShip] = useState(0);
+    const [phuongThucTT, setPhuongThucTT] = useState('Tiền mặt');  // 🔥 Mặc định tiền mặt 
 
     const navigate = useNavigate();
     const DEFAULT_PET_IMG = 'https://placehold.co/80x80?text=Pet+Shop';
@@ -72,16 +80,77 @@ const Cart = () => {
                   .toLowerCase().trim();
     };
 
+    // 🔍 DEBUG: Monitor cartInfo changes
+    useEffect(() => {
+        console.log('🔄 CartInfo State Updated:', {
+            TongDiemTichLuy: cartInfo.TongDiemTichLuy,
+            TongThanhTien: cartInfo.TongThanhTien
+        });
+    }, [cartInfo]);
+
     // --- 3. LOAD GIỎ HÀNG ---
     const loadCart = async () => {
         setLoading(true);
         try {
+            // 🔥 BƯỚC 1: LOAD PROFILE TRƯỚC (LUÔN LUÔN, DÙ CÓ GIỎ HAY KHÔNG)
+            let currentPoints = 0;
+            let currentAddress = '';
+            let memberTier = '';
+            let memberDiscount = 0;
+            
+            if (localStorage.getItem('token')) {
+                try {
+                    const profile = await orderService.getProfile();
+                    console.log('👤 Profile loaded:', profile);
+                    console.log('🔍 All profile keys:', Object.keys(profile));
+                    console.log('🔍 Profile fields check:', {
+                        TongDiemTichLuy: profile.TongDiemTichLuy,
+                        tongDiemTichLuy: profile.tongDiemTichLuy,
+                        DiemTichLuy: profile.DiemTichLuy,
+                        diemTichLuy: profile.diemTichLuy,
+                        Diem: profile.Diem,
+                        diem: profile.diem
+                    });
+                    
+                    currentPoints = Number(
+                        profile.TongDiemTichLuy || 
+                        profile.tongDiemTichLuy || 
+                        profile.DiemTichLuy || 
+                        profile.diemTichLuy ||
+                        profile.Diem ||
+                        profile.diem ||
+                        0
+                    );
+                    currentAddress = profile.DiaChi || profile.diaChi || '';
+                    memberTier = profile.HangThanhVien || profile.hangThanhVien || '';  // 🔥 FIXED: Đổi từ XepHang → HangThanhVien
+                    
+                    // 🔥 Database lưu integer (5, 7), cần chia 100 để ra decimal (0.05, 0.07)
+                    const discountPercent = Number(profile.GiamGiaThanhVien || profile.giamGiaThanhVien || 0);
+                    memberDiscount = discountPercent / 100;  // 5 → 0.05, 7 → 0.07
+                    
+                    console.log('✅ Points found:', currentPoints);
+                    console.log('🏆 Member tier:', memberTier, '| Raw percent:', discountPercent, '| Decimal:', memberDiscount);
+                } catch (err) { 
+                    console.error("❌ Lỗi load profile:", err); 
+                }
+            }
+
+            if (currentAddress && !diaChi) setDiaChi(currentAddress);
+            
+            // 🔥 BƯỚC 2: LOAD GIỎ HÀNG
             const currentCode = localStorage.getItem('currentOrderCode')?.replace(/\+/g, '').trim();
             
-            // 🔥 NẾU KHÔNG CÓ CODE => GIỎ TRỐNG (Vừa login mới hoặc đã checkout)
+            // NẾU KHÔNG CÓ CODE => GIỎ TRỐNG (nhưng vẫn có điểm từ profile)
             if (!currentCode) {
                 setCartDetails([]);
-                setCartInfo({ TongThanhTien: 0, PhiGiaoHang: 0, TongThanhTienSC: 0, TongDiemTichLuy: 0 });
+                setCartInfo({ 
+                    TongThanhTien: 0, 
+                    PhiGiaoHang: 0, 
+                    TongThanhTienSC: 0,
+                    TongDiemTichLuy: currentPoints,
+                    XepHang: memberTier,  // 🔥 SET hạng thành viên
+                    GiamGiaThanhVien: memberDiscount  // 🔥 SET % giảm giá 
+                });
                 setPhiShip(0);
                 setDiemDung(0);
                 setLoading(false);
@@ -103,19 +172,6 @@ const Cart = () => {
                 LinkAnh: DEFAULT_PET_IMG 
             }));
 
-            // Lấy Profile User & Điểm tích lũy
-            let currentPoints = 0;
-            let currentAddress = '';
-            if (localStorage.getItem('token')) {
-                try {
-                    const profile = await orderService.getProfile();
-                    currentPoints = profile.TongDiemTichLuy || profile.tongDiemTichLuy || 0;
-                    currentAddress = profile.DiaChi || profile.diaChi || '';
-                } catch (err) { console.error("Lỗi profile:", err); }
-            }
-
-            if (currentAddress && !diaChi) setDiaChi(currentAddress);
-
             setCartDetails(cartItems);
             const total = cartItems.reduce((s, it) => s + it.ThanhTien, 0);
             
@@ -123,8 +179,12 @@ const Cart = () => {
                 TongThanhTien: total, 
                 PhiGiaoHang: 0, 
                 TongThanhTienSC: total,
-                TongDiemTichLuy: currentPoints
+                TongDiemTichLuy: currentPoints,
+                XepHang: memberTier,
+                GiamGiaThanhVien: memberDiscount
             });
+            
+            console.log('🛒 Cart loaded with points:', currentPoints);
             
             if (ngayNhan) setPhiShip(calculateShippingFee(ngayNhan));
             
@@ -173,7 +233,8 @@ const Cart = () => {
     useEffect(() => { loadCart(); }, []);
 
     const formatMoney = (v) => Number(v || 0).toLocaleString('vi-VN') + 'đ';
-    const finalTotal = (cartInfo.TongThanhTien || 0) + phiShip - (diemDung * 1000);
+    const memberDiscountAmount = (cartInfo.TongThanhTien || 0) * (cartInfo.GiamGiaThanhVien || 0);
+    const finalTotal = (cartInfo.TongThanhTien || 0) + phiShip - memberDiscountAmount - (diemDung * 1000);
 
     // --- 4. XỬ LÝ THANH TOÁN (CHECK ĐỊA CHỈ KỸ CÀNG) ---
     // --- 4. XỬ LÝ THANH TOÁN (ĐÃ THÊM NAVIGATE & DỌN DẸP MÃ ĐƠN) ---
@@ -202,8 +263,8 @@ const Cart = () => {
             const points = parseInt(diemDung || 0, 10);
             const code = localStorage.getItem('currentOrderCode')?.replace(/\+/g, '').trim();
             
-            // 1. Gọi API hoàn tất đơn hàng
-            await orderService.completeOrder(code, points, ngayNhan, diaChi);
+            // 1. Gọi API hoàn tất đơn hàng với phương thức thanh toán
+            await orderService.completeOrder(code, points, ngayNhan, diaChi, phuongThucTT);
 
             // 2. 🔥 QUAN TRỌNG: Xóa mã phiếu cũ ngay lập tức để giỏ hàng trống sạch sẽ
             localStorage.removeItem('currentOrderCode'); 
@@ -279,9 +340,27 @@ const Cart = () => {
                             </div>
                         ))}
                         
+                        {/* Thẻ hạng thành viên */}
+                        {cartInfo.XepHang && (
+                            <div style={{ 
+                                background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                                padding: '12px 15px',
+                                borderRadius: '8px',
+                                marginBottom: '15px',
+                                color: 'white'
+                            }}>
+                                <div style={{ fontSize: '0.95rem', fontWeight: '600' }}>
+                                    🏆 Hạng thành viên: {cartInfo.XepHang}
+                                </div>
+                                <div style={{ fontSize: '0.85rem', marginTop: '3px' }}>
+                                    Khuyến mãi: {((cartInfo.GiamGiaThanhVien || 0) * 100).toFixed(0)}% cho đơn hàng
+                                </div>
+                            </div>
+                        )}
+
                         <div className="modern-points-section">
                             <div className="points-label">
-                                🎁 <span>Dùng điểm tích lũy (Có: <strong>{cartInfo.TongDiemTichLuy}</strong>)</span>
+                                🎁 <span>Dùng điểm tích lũy (Có: <strong>{cartInfo.TongDiemTichLuy || 0} điểm</strong>)</span>
                             </div>
                             <div className="points-input-group">
                                 <input 
@@ -290,16 +369,15 @@ const Cart = () => {
                                     value={diemDung} 
                                     onChange={handlePointChange} 
                                     min="0"
-                                    max={cartInfo.TongDiemTichLuy}
-                                    // 🔥 KHÓA Ô NHẬP NẾU KHÔNG CÓ ĐIỂM
-                                    disabled={cartInfo.TongDiemTichLuy <= 0} 
+                                    max={cartInfo.TongDiemTichLuy || 0}
+                                    disabled={(cartInfo.TongDiemTichLuy || 0) <= 0} 
                                     style={{ 
-                                        backgroundColor: cartInfo.TongDiemTichLuy <= 0 ? '#f0f0f0' : '#fff',
-                                        cursor: cartInfo.TongDiemTichLuy <= 0 ? 'not-allowed' : 'text'
+                                        backgroundColor: (cartInfo.TongDiemTichLuy || 0) <= 0 ? '#f0f0f0' : '#fff',
+                                        cursor: (cartInfo.TongDiemTichLuy || 0) <= 0 ? 'not-allowed' : 'text'
                                     }}
                                 />
                                 <span className="points-convert-text">
-                                    {cartInfo.TongDiemTichLuy > 0 
+                                    {(cartInfo.TongDiemTichLuy || 0) > 0 
                                         ? `Điểm (= ${formatMoney(diemDung * 1000)})` 
                                         : '(Bạn chưa có điểm để dùng)'}
                                 </span>
@@ -343,12 +421,47 @@ const Cart = () => {
                             />
                         </div>
 
+                        {/* 🔥 CHỌN PHƯƠNG THỨC THANH TOÁN */}
+                        <div className="form-group-modern" style={{ marginTop: '15px', marginBottom: '15px' }}>
+                            <label style={{ fontWeight: '600', marginBottom: '10px', display: 'block' }}>💳 Phương thức thanh toán:</label>
+                            <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                                    <input 
+                                        type="radio" 
+                                        name="phuongthuc" 
+                                        value="Tiền mặt"
+                                        checked={phuongThucTT === 'Tiền mặt'}
+                                        onChange={(e) => setPhuongThucTT(e.target.value)}
+                                        style={{ marginRight: '8px', cursor: 'pointer' }}
+                                    />
+                                    <span>💵 Tiền mặt (COD)</span>
+                                </label>
+                                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                                    <input 
+                                        type="radio" 
+                                        name="phuongthuc" 
+                                        value="Chuyển khoản"
+                                        checked={phuongThucTT === 'Chuyển khoản'}
+                                        onChange={(e) => setPhuongThucTT(e.target.value)}
+                                        style={{ marginRight: '8px', cursor: 'pointer' }}
+                                    />
+                                    <span>🏦 Chuyển khoản</span>
+                                </label>
+                            </div>
+                        </div>
+
                         <div className="summary-divider"></div>
                         <div className="summary-row"><span>Tạm tính:</span><span>{formatMoney(cartInfo.TongThanhTien)}</span></div>
                         <div className="summary-row"><span>Phí ship:</span><span>{formatMoney(phiShip)}</span></div>
+                        {cartInfo.XepHang && cartInfo.GiamGiaThanhVien > 0 && (
+                            <div className="summary-row" style={{ color: '#e67e22', fontWeight: '600' }}>
+                                <span>🏆 Giảm hạng {cartInfo.XepHang}:</span>
+                                <span>-{formatMoney(cartInfo.TongThanhTien * cartInfo.GiamGiaThanhVien)}</span>
+                            </div>
+                        )}
                         {diemDung > 0 && (
                             <div className="summary-row text-green">
-                                <span>Giảm giá:</span><span>-{formatMoney(diemDung * 1000)}</span>
+                                <span>Giảm điểm tích lũy:</span><span>-{formatMoney(diemDung * 1000)}</span>
                             </div>
                         )}
                         <div className="summary-row-total">

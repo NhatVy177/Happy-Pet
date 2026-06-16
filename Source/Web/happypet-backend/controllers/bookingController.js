@@ -332,19 +332,23 @@ exports.checkOngoingPackage = async (req, res) => {
 exports.addVaccineToOngoingPackage = async (req, res) => {
     const { MaPhieu, MaTC } = req.body;
     try {
+        console.log('🔍 Adding vaccine to package:', { MaPhieu, MaTC });
+        
         const pool = await sql.connect();
         const result = await pool.request()
             .input('MaPhieu', sql.NChar(10), MaPhieu)
             .input('MaTC', sql.NChar(10), MaTC)
             .execute('sp_ThemVaccineVaoGoiDangTiem');
         
+        console.log('✅ SP Result:', result.recordset[0]);
+        
         res.json({
             success: true,
-            message: result.recordset[0].Message,
+            message: result.recordset[0].Message || 'Thêm vaccine thành công',
             data: result.recordset[0]
         });
     } catch (err) {
-        console.error('Lỗi thêm vaccine vào gói:', err);
+        console.error('❌ Lỗi thêm vaccine vào gói:', err);
         res.status(500).json({ success: false, message: err.message });
     }
 };

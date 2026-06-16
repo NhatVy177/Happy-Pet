@@ -5,7 +5,8 @@ GO
 CREATE OR ALTER PROCEDURE sp_XuatHoaDonTrucTiep
     @MaPhieu NCHAR(10),
     @DiemMuonDung INT = 0,        -- Số điểm khách muốn dùng để giảm giá
-    @PhuongThucTT NVARCHAR(50)
+    @PhuongThucTT NVARCHAR(50),
+    @MaNV_XuatHD NCHAR(10)        -- 🔥 THÊM MÃ NHÂN VIÊN XUẤT HÓA ĐƠN
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -100,10 +101,12 @@ BEGIN
     DECLARE @PhanTramGiam INT = 0;
     DECLARE @TienGiamHangTV DECIMAL(18,2) = 0;
 
-    SELECT @PhanTramGiam = HTV.KhuyenMaiUuTien
+    -- 🔥 FIX: Lấy hạng từ NĂM GẦN NHẤT (không cứng năm ngoái)
+    SELECT TOP 1 @PhanTramGiam = HTV.KhuyenMaiUuTien
     FROM XEP_HANG_NAM XHN
     JOIN HANG_TV HTV ON XHN.MaHang = HTV.MaHang
-    WHERE XHN.MaKH = @MaKH AND XHN.Nam = YEAR(GETDATE()) - 1;
+    WHERE XHN.MaKH = @MaKH
+    ORDER BY XHN.Nam DESC;  -- Lấy năm mới nhất
 
     SET @TienGiamHangTV = @TongTienHang * (ISNULL(@PhanTramGiam, 0) / 100.0);
 
@@ -129,7 +132,8 @@ BEGIN
             KhuyenMai = @TongKhuyenMai,
             DiemQuyDoi = @DiemMuonDung,
             TongThanhTienSC = @TongThanhToan,
-            PhuongThucTT = @PhuongThucTT
+            PhuongThucTT = @PhuongThucTT,
+            MaNV = @MaNV_XuatHD  -- 🔥 CẬP NHẬT MÃ NHÂN VIÊN
         WHERE MaPhieu = @MaPhieu;
 
         -- B2: Trừ điểm tích lũy đã dùng

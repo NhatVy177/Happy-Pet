@@ -259,3 +259,119 @@ exports.getAllProducts = async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 };
+
+// 🔥 THỐNG KÊ DOANH THU THEO BÁC SĨ
+exports.getRevenueByDoctor = async (req, res) => {
+    try {
+        const { tuNgay, denNgay } = req.query;
+
+        const pool = await sql.connect();
+        const result = await pool.request()
+            .input('MaCN', sql.NChar(10), null)  // NULL = tất cả chi nhánh
+            .input('TuNgay', sql.Date, tuNgay || null)
+            .input('DenNgay', sql.Date, denNgay || null)
+            .execute('sp_ThongKeDoanhThuBacSi');
+
+        res.json(result.recordset);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+// 🔥 THỐNG KÊ SỐ LƯỢT KHÁM
+exports.getExamStats = async (req, res) => {
+    try {
+        const { tuNgay, denNgay } = req.query;
+
+        const pool = await sql.connect();
+        const result = await pool.request()
+            .input('MaCN', sql.NChar(10), null)
+            .input('TuNgay', sql.Date, tuNgay || null)
+            .input('DenNgay', sql.Date, denNgay || null)
+            .execute('sp_ThongKeSoLuotKham');
+
+        res.json(result.recordset);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+// 🔥 THỐNG KÊ DOANH THU BÁN HÀNG
+exports.getProductSalesStats = async (req, res) => {
+    try {
+        const { tuNgay, denNgay } = req.query;
+
+        const pool = await sql.connect();
+        const result = await pool.request()
+            .input('MaCN', sql.NChar(10), null)
+            .input('TuNgay', sql.Date, tuNgay || null)
+            .input('DenNgay', sql.Date, denNgay || null)
+            .execute('sp_ThongKeDoanhThuBanHang');
+
+        res.json(result.recordset);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+// 🔥 QUẢN LÝ NHÂN VIÊN (GIÁM ĐỐC)
+// Lấy danh sách tất cả nhân viên
+exports.getAllEmployees = async (req, res) => {
+    try {
+        const pool = await sql.connect();
+        const result = await pool.request()
+            .input('MaCN', sql.NChar(10), null)
+            .input('ChucVu', sql.NVarChar(50), null)
+            .execute('sp_LayDanhSachNhanVien');
+
+        res.json(result.recordset);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+// Thêm nhân viên mới
+exports.addEmployee = async (req, res) => {
+    try {
+        const { HoTen, NgaySinh, GioiTinh, ChucVu, NgayVaoLam, LuongCoBan, MaCN, TenDangNhap, MatKhau } = req.body;
+
+        const pool = await sql.connect();
+        const result = await pool.request()
+            .input('HoTen', sql.NVarChar(50), HoTen)
+            .input('NgaySinh', sql.Date, NgaySinh)
+            .input('GioiTinh', sql.NVarChar(3), GioiTinh)
+            .input('ChucVu', sql.NVarChar(50), ChucVu)
+            .input('NgayVaoLam', sql.Date, NgayVaoLam)
+            .input('LuongCoBan', sql.Decimal(12, 2), LuongCoBan)
+            .input('MaCN', sql.NChar(10), MaCN)
+            .input('TenDangNhap', sql.VarChar(30), TenDangNhap)
+            .input('MatKhau', sql.VarChar(50), MatKhau)
+            .execute('sp_ThemNhanVien');
+
+        res.json({ message: 'Thêm nhân viên thành công', data: result.recordset[0] });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+// Cập nhật thông tin nhân viên
+exports.updateEmployee = async (req, res) => {
+    try {
+        const { MaNV } = req.params;
+        const { HoTen, NgaySinh, GioiTinh, ChucVu, LuongCoBan } = req.body;
+
+        const pool = await sql.connect();
+        const result = await pool.request()
+            .input('MaNV', sql.NChar(10), MaNV)
+            .input('HoTen', sql.NVarChar(50), HoTen)
+            .input('NgaySinh', sql.Date, NgaySinh)
+            .input('GioiTinh', sql.NVarChar(3), GioiTinh)
+            .input('ChucVu', sql.NVarChar(50), ChucVu)
+            .input('LuongCoBan', sql.Decimal(12, 2), LuongCoBan)
+            .execute('sp_CapNhatNhanVien');
+
+        res.json({ message: 'Cập nhật thành công' });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};

@@ -21,6 +21,7 @@ const VaccineDetail = () => {
     const [selectedVaccine, setSelectedVaccine] = useState('');
     const [lieuLuong, setLieuLuong] = useState('1 liều');
     const [isBooster, setIsBooster] = useState(false);
+    const [searchVaccine, setSearchVaccine] = useState(''); // 🔥 TÌM KIẾM VACCINE
     
     // State cho thêm gói
     const [showPackageModal, setShowPackageModal] = useState(false);
@@ -47,13 +48,13 @@ const VaccineDetail = () => {
             const token = localStorage.getItem('token');
             
             // Lấy thông tin bệnh nhân
-            const patientRes = await axios.get(`https://happy-pet-fomc.onrender.com/api/doctor/patient-info/${maPhieu}`, {
+            const patientRes = await axios.get(`http://localhost:5000/api/doctor/patient-info/${maPhieu}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setPatientInfo(patientRes.data);
             
             // Lấy danh sách vaccine đã tiêm
-            const vaccinesRes = await axios.get(`https://happy-pet-fomc.onrender.com/api/doctor/exam-detail/${maPhieu}`, {
+            const vaccinesRes = await axios.get(`http://localhost:5000/api/doctor/exam-detail/${maPhieu}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setVaccines(vaccinesRes.data.danhSachVaccine || []);
@@ -69,7 +70,7 @@ const VaccineDetail = () => {
             // 🔥 Tính số mũi đã tiêm trong gói từ API check-ongoing-package
             if (goiInfo && patientRes.data.MaTC) {
                 try {
-                    const checkRes = await axios.get(`https://happy-pet-fomc.onrender.com/api/booking/check-ongoing-package/${patientRes.data.MaTC}`, {
+                    const checkRes = await axios.get(`http://localhost:5000/api/booking/check-ongoing-package/${patientRes.data.MaTC}`, {
                         headers: { Authorization: `Bearer ${token}` }
                     });
                     if (checkRes.data && checkRes.data.SoMuiDaTiem !== undefined) {
@@ -88,14 +89,14 @@ const VaccineDetail = () => {
             }
             
             // Lấy danh sách vaccine có sẵn
-            const availRes = await axios.get('https://happy-pet-fomc.onrender.com/api/doctor/search-medicines', {
+            const availRes = await axios.get('http://localhost:5000/api/doctor/search-medicines', {
                 headers: { Authorization: `Bearer ${token}` },
                 params: { tuKhoa: '', loai: 'Vaccine' }
             });
             setAvailableVaccines(availRes.data);
             
             // Lấy danh sách gói tiêm
-            const packRes = await axios.get('https://happy-pet-fomc.onrender.com/api/doctor/vaccine-packages', {
+            const packRes = await axios.get('http://localhost:5000/api/doctor/vaccine-packages', {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setPackages(packRes.data);
@@ -159,7 +160,7 @@ const VaccineDetail = () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get(`https://happy-pet-fomc.onrender.com/api/doctor/vaccine-history/${patientInfo.MaTC}`, {
+            const res = await axios.get(`http://localhost:5000/api/doctor/vaccine-history/${patientInfo.MaTC}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setVaccineHistory(res.data);
@@ -187,7 +188,7 @@ const VaccineDetail = () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            await axios.post('https://happy-pet-fomc.onrender.com/api/doctor/add-vaccine', {
+            await axios.post('http://localhost:5000/api/doctor/add-vaccine', {
                 MaPhieu: maPhieu,
                 MaVaccine: selectedVaccine,
                 LieuLuong: lieuLuong,
@@ -215,6 +216,20 @@ const VaccineDetail = () => {
             return Swal.fire('Lỗi', 'Vui lòng chọn đầy đủ thông tin!', 'warning');
         }
         
+        // 🔥 CHẶN ĐĂNG KÝ GÓI MỚI CÙNG VACCINE ĐÃ CÓ GÓI
+        if (packageInfo && packageInfo.HieuLuc && vaccineForPackage === packageInfo.MaVaccine) {
+            return Swal.fire({
+                icon: 'error',
+                title: 'Không thể đăng ký!',
+                html: `
+                    <p>Bạn đã có gói tiêm <strong style="color: #1976d2">${packageInfo.TenGoi}</strong> cho vaccine này!</p>
+                    <p style="font-size: 14px; color: #666; margin-top: 10px;">
+                        📌 Vui lòng hoàn thành gói hiện tại (${shotsFired}/${packageInfo.SoMuiTuongUng} mũi) hoặc chọn vaccine khác.
+                    </p>
+                `,
+            });
+        }
+        
         if (!healthChecked) {
             return Swal.fire({
                 icon: 'warning',
@@ -226,7 +241,7 @@ const VaccineDetail = () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            await axios.post('https://happy-pet-fomc.onrender.com/api/doctor/add-vaccine-package', {
+            await axios.post('http://localhost:5000/api/doctor/add-vaccine-package', {
                 MaPhieu: maPhieu,
                 MaVaccine: vaccineForPackage,
                 MaGoi: selectedPackage
@@ -260,7 +275,7 @@ const VaccineDetail = () => {
             setLoading(true);
             try {
                 const token = localStorage.getItem('token');
-                await axios.post('https://happy-pet-fomc.onrender.com/api/doctor/remove-vaccine', {
+                await axios.post('http://localhost:5000/api/doctor/remove-vaccine', {
                     MaPhieu: maPhieu,
                     MaVaccine: maVaccine
                 }, {
@@ -303,7 +318,7 @@ const VaccineDetail = () => {
             setLoading(true);
             try {
                 const token = localStorage.getItem('token');
-                await axios.post('https://happy-pet-fomc.onrender.com/api/doctor/complete-vaccine', {
+                await axios.post('http://localhost:5000/api/doctor/complete-vaccine', {
                     MaPhieu: maPhieu
                 }, {
                     headers: { Authorization: `Bearer ${token}` }
@@ -392,31 +407,74 @@ const VaccineDetail = () => {
                 </button>
             </div>
 
-            {/* Thông tin gói tiêm đã đăng ký (nếu có) */}
-            {packageInfo && (
-                <div className="section-card" style={{background: '#fff3e0', border: '2px solid #ff9800'}}>
-                    <h3 style={{color: '#e65100', marginBottom: '15px'}}>📦 Gói Tiêm Đã Đăng Ký</h3>
-                    <div className="info-grid" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
-                        <div><strong>Tên gói:</strong> {packageInfo.TenGoi}</div>
-                        <div><strong>Vaccine:</strong> {packageInfo.TenVaccine}</div>
-                        <div><strong>Tổng số mũi:</strong> {packageInfo.SoMuiTuongUng} mũi</div>
-                        <div><strong>Khoảng cách mũi:</strong> {packageInfo.ThoiHan} ngày/mũi</div>
-                        <div>
-                            <strong>Đã tiêm:</strong> <span style={{color: '#1976d2', fontWeight: '600'}}>{shotsFired}/{packageInfo.SoMuiTuongUng} mũi</span>
-                        </div>
-                        <div>
-                            <strong>Còn lại:</strong> <span style={{color: '#f44336', fontWeight: '600'}}>{packageInfo.SoMuiTuongUng - shotsFired} mũi</span>
-                        </div>
-                        <div><strong>Giảm giá:</strong> {(packageInfo.GiamGia * 100).toFixed(0)}%</div>
-                        <div><strong>Ngày hết hạn:</strong> {packageInfo.NgayHetHan ? new Date(packageInfo.NgayHetHan).toLocaleDateString('vi-VN') : 'N/A'}</div>
-                        <div><strong>Hiệu lực:</strong> <span style={{color: packageInfo.HieuLuc ? 'green' : 'red', fontWeight: 'bold'}}>{packageInfo.HieuLuc ? '✓ Còn hiệu lực' : '✕ Hết hiệu lực'}</span></div>
-                        <div><strong>Thành tiền gói:</strong> <span style={{color: '#f44336', fontWeight: '600'}}>{packageInfo.ThanhTien?.toLocaleString()} đ</span></div>
+            {/* Thông tin gói tiêm đã đăng ký (nếu có) - CHỈ HIỆN KHI CÓ GÓI VÀ ĐÃ TIÊM ÍT NHẤT 1 MŨI */}
+            {packageInfo && shotsFired > 0 && (
+                <div className="section-card" style={{
+                    background: 'linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)',
+                    border: '3px solid #ff9800',
+                    boxShadow: '0 4px 12px rgba(255, 152, 0, 0.2)'
+                }}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
+                        <h3 style={{color: '#e65100', margin: 0}}>🎁 Gói Tiêm Đang Áp Dụng</h3>
+                        <span style={{
+                            background: packageInfo.HieuLuc ? '#4caf50' : '#f44336',
+                            color: 'white',
+                            padding: '5px 15px',
+                            borderRadius: '20px',
+                            fontSize: '13px',
+                            fontWeight: 'bold'
+                        }}>
+                            {packageInfo.HieuLuc ? '✓ Còn hiệu lực' : '✕ Hết hạn'}
+                        </span>
                     </div>
-                    <div style={{marginTop: '15px', padding: '10px', background: '#fffde7', borderRadius: '5px', fontSize: '14px'}}>
-                        ℹ️ <strong>Lưu ý:</strong> 
+                    
+                    <div style={{
+                        background: 'white',
+                        padding: '15px',
+                        borderRadius: '8px',
+                        marginBottom: '15px',
+                        border: '1px solid #ffcc80'
+                    }}>
+                        <div className="info-grid" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px'}}>
+                            <div><strong>📦 Tên gói:</strong> <span style={{color: '#1976d2'}}>{packageInfo.TenGoi}</span></div>
+                            <div><strong>💉 Vaccine:</strong> {packageInfo.TenVaccine}</div>
+                            <div><strong>📊 Tổng số mũi:</strong> {packageInfo.SoMuiTuongUng} mũi</div>
+                            <div><strong>📅 Khoảng cách:</strong> {packageInfo.ThoiHan} ngày/mũi</div>
+                            <div>
+                                <strong>✅ Đã tiêm:</strong> <span style={{
+                                    color: '#4caf50',
+                                    fontWeight: '700',
+                                    fontSize: '16px'
+                                }}>{shotsFired}/{packageInfo.SoMuiTuongUng} mũi</span>
+                            </div>
+                            <div>
+                                <strong>⏳ Còn lại:</strong> <span style={{
+                                    color: '#f44336',
+                                    fontWeight: '700',
+                                    fontSize: '16px'
+                                }}>{packageInfo.SoMuiTuongUng - shotsFired} mũi</span>
+                            </div>
+                            <div><strong>🎟️ Giảm giá:</strong> {(packageInfo.GiamGia * 100).toFixed(0)}%</div>
+                            <div><strong>⏰ Hết hạn:</strong> {packageInfo.NgayHetHan ? new Date(packageInfo.NgayHetHan).toLocaleDateString('vi-VN') : 'N/A'}</div>
+                            <div style={{gridColumn: 'span 2'}}>
+                                <strong>💰 Thành tiền gói:</strong> <span style={{color: '#f44336', fontWeight: '700', fontSize: '18px'}}>{packageInfo.ThanhTien?.toLocaleString()} đ</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style={{
+                        padding: '12px',
+                        background: shotsFired === 0 ? '#e3f2fd' : '#e8f5e9',
+                        borderRadius: '8px',
+                        border: `2px dashed ${shotsFired === 0 ? '#1976d2' : '#4caf50'}`,
+                        fontSize: '14px'
+                    }}>
+                        <strong style={{color: shotsFired === 0 ? '#1565c0' : '#2e7d32'}}>
+                            {shotsFired === 0 ? '🆕 Gói mới:' : '🔄 Mũi nhắc lại:'}
+                        </strong>{' '}
                         {shotsFired === 0 
-                            ? ' Đây là gói mới đã đăng ký. Tiêm mũi đầu tiên để kích hoạt gói.'
-                            : ` Các mũi nhắc lại trong gói này sẽ được tính miễn phí. Tiêm mũi tiếp theo sau ${packageInfo.ThoiHan} ngày kể từ mũi trước.`
+                            ? 'Đây là gói mới đã đăng ký. Nhấn nút "Tiêm Mũi Đầu" bên dưới để bắt đầu.'
+                            : `Đã tiêm mũi ${shotsFired}. Nhấn "Tiêm Mũi Nhắc Lại" để tiêm mũi ${shotsFired + 1} (MIỄN PHÍ trong gói).`
                         }
                     </div>
                 </div>
@@ -439,7 +497,8 @@ const VaccineDetail = () => {
                         >
                             ➕ Thêm Vaccine Lẻ
                         </button>
-                        {packageInfo && packageInfo.HieuLuc && shotsFired < packageInfo.SoMuiTuongUng ? (
+                        {/* CHỈ HIỆN NÚT TIÊM GÓI KHI CÓ GÓI, CÒN HIỆU LỰC VÀ CHƯA TIÊM ĐỦ */}
+                        {packageInfo && packageInfo.HieuLuc && shotsFired > 0 && shotsFired < packageInfo.SoMuiTuongUng ? (
                             <button 
                                 onClick={() => {
                                     // Tự động chọn vaccine từ gói và đánh dấu TheoGoi
@@ -453,28 +512,26 @@ const VaccineDetail = () => {
                                     padding: '12px 24px',
                                     fontSize: '15px',
                                     fontWeight: 'bold',
-                                    background: shotsFired === 0 ? '#4caf50' : '#2196f3',
-                                    color: 'white'
+                                    background: '#ff6b6b',
+                                    color: 'white',
+                                    boxShadow: '0 3px 10px rgba(255, 107, 107, 0.4)'
                                 }}
                             >
-                                {shotsFired === 0 
-                                    ? `💉 Tiêm Mũi Đầu (1/${packageInfo.SoMuiTuongUng} - Theo Gói)`
-                                    : `🔄 Thêm Mũi Tiếp Theo (${shotsFired + 1}/${packageInfo.SoMuiTuongUng})`
-                                }
+                                🔄 Tiêm Mũi Nhắc Lại ({shotsFired + 1}/{packageInfo.SoMuiTuongUng})
                             </button>
-                        ) : (
-                            <button 
-                                onClick={() => setShowPackageModal(true)} 
-                                className="btn-secondary"
-                                style={{
-                                    padding: '12px 24px',
-                                    fontSize: '15px',
-                                    fontWeight: 'bold'
-                                }}
-                            >
-                                📦 Đăng Ký Gói Mới
-                            </button>
-                        )}
+                        ) : null}
+                        
+                        <button 
+                            onClick={() => setShowPackageModal(true)} 
+                            className="btn-secondary"
+                            style={{
+                                padding: '12px 24px',
+                                fontSize: '15px',
+                                fontWeight: 'bold'
+                            }}
+                        >
+                            📦 Đăng Ký Gói Mới (Vaccine Khác)
+                        </button>
                     </div>
                 </div>
                 
@@ -620,22 +677,54 @@ const VaccineDetail = () => {
                     <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{minWidth: '500px'}}>
                         <h3 style={{marginBottom: '20px', color: '#1976d2'}}>➕ Thêm Vaccine Lẻ</h3>
                         
+                        {/* 🔥 TÌM KIẾM VACCINE */}
+                        <div style={{marginBottom: '15px'}}>
+                            <input 
+                                type="text"
+                                placeholder="🔍 Gõ để tìm vaccine ngay trong danh sách..."
+                                value={searchVaccine}
+                                onChange={(e) => setSearchVaccine(e.target.value)}
+                                className="form-input"
+                                style={{width: '100%', padding: '12px', fontSize: '15px', border: '2px solid #1976d2'}}
+                            />
+                            {searchVaccine && (
+                                <small style={{color: '#666', fontSize: '13px', marginTop: '5px', display: 'block'}}>
+                                    🔍 Tìm thấy {availableVaccines.filter(v => v.TenMatHang.toLowerCase().includes(searchVaccine.toLowerCase())).length} kết quả
+                                </small>
+                            )}
+                        </div>
+                        
                         <div style={{marginBottom: '20px'}}>
                             <label style={{display: 'block', fontWeight: '600', marginBottom: '8px'}}>
                                 Chọn vaccine: <span style={{color: 'red'}}>*</span>
                             </label>
                             <select 
                                 value={selectedVaccine} 
-                                onChange={(e) => setSelectedVaccine(e.target.value)}
+                                onChange={(e) => {
+                                    const value = e.target.value;
+                                    setSelectedVaccine(value);
+                                    // 🔥 AUTO-DETECT: Nếu vaccine này có trong gói hiện tại
+                                    if (packageInfo && packageInfo.HieuLuc && value === packageInfo.MaVaccine && shotsFired < packageInfo.SoMuiTuongUng) {
+                                        setIsBooster(true); // Tự động tick "Nhắc lại"
+                                        setLieuLuong(`Mũi ${shotsFired + 1}/${packageInfo.SoMuiTuongUng}`);
+                                    } else {
+                                        setIsBooster(false);
+                                        setLieuLuong('1 liều');
+                                    }
+                                }}
                                 className="form-input"
-                                style={{width: '100%', padding: '10px'}}
+                                style={{width: '100%', padding: '10px', fontSize: '14px'}}
+                                size="8"
                             >
                                 <option value="">-- Chọn vaccine --</option>
-                                {availableVaccines.map(v => (
-                                    <option key={v.MaMatHang} value={v.MaMatHang}>
-                                        {v.TenMatHang} - {v.DonGia?.toLocaleString()} đ (Tồn: {v.SoLuongTon})
-                                    </option>
-                                ))}
+                                {availableVaccines
+                                    .filter(v => v.TenMatHang.toLowerCase().includes(searchVaccine.toLowerCase()))
+                                    .map(v => (
+                                        <option key={v.MaMatHang} value={v.MaMatHang}>
+                                            {v.TenMatHang} - {v.DonGia?.toLocaleString()} đ (Tồn: {v.SoLuongTon})
+                                            {packageInfo && packageInfo.MaVaccine === v.MaMatHang && packageInfo.HieuLuc && shotsFired < packageInfo.SoMuiTuongUng ? ' 🎁 (Có gói)' : ''}
+                                        </option>
+                                    ))}
                             </select>
                         </div>
 
@@ -656,11 +745,30 @@ const VaccineDetail = () => {
                             </small>
                         </div>
 
+                        {/* 🔥 THÔNG BÁO NẾU VACCINE NÀY CÓ GÓI */}
+                        {packageInfo && packageInfo.HieuLuc && selectedVaccine === packageInfo.MaVaccine && shotsFired < packageInfo.SoMuiTuongUng && (
+                            <div style={{
+                                padding: '15px',
+                                background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)',
+                                borderRadius: '8px',
+                                border: '2px solid #1976d2',
+                                marginBottom: '20px'
+                            }}>
+                                <div style={{fontSize: '15px', fontWeight: '600', color: '#1565c0', marginBottom: '8px'}}>
+                                    🎁 Bạn đã đăng ký gói: <span style={{color: '#d32f2f'}}>{packageInfo.TenGoi}</span>
+                                </div>
+                                <div style={{fontSize: '14px', color: '#424242', lineHeight: '1.6'}}>
+                                    📌 Tiêm mũi tiếp theo ({shotsFired + 1}/{packageInfo.SoMuiTuongUng}) sẽ được <strong style={{color: '#4caf50'}}>MIỄN PHÍ</strong> trong gói này<br/>
+                                    📅 Khoảng cách giữa các mũi: <strong>{packageInfo.ThoiHan} ngày</strong>
+                                </div>
+                            </div>
+                        )}
+
                         <div style={{
                             padding: '15px', 
-                            background: '#fff3e0', 
+                            background: isBooster ? '#e8f5e9' : '#fff3e0', 
                             borderRadius: '8px',
-                            border: '1px solid #ff9800',
+                            border: `2px solid ${isBooster ? '#4caf50' : '#ff9800'}`,
                             marginBottom: '20px'
                         }}>
                             <label style={{display: 'flex', alignItems: 'center', gap: '10px', margin: 0, cursor: 'pointer'}}>
@@ -670,8 +778,11 @@ const VaccineDetail = () => {
                                     onChange={(e) => setIsBooster(e.target.checked)}
                                     style={{width: '18px', height: '18px'}}
                                 />
-                                <span style={{fontWeight: '500'}}>
-                                    🔄 Mũi nhắc lại (theo gói đã đăng ký - Miễn phí)
+                                <span style={{fontWeight: '600', fontSize: '15px'}}>
+                                    {isBooster 
+                                        ? '✅ Nhắc lại: Có | Giá: 0đ (Miễn phí theo gói)'
+                                        : '🔄 Mũi nhắc lại (theo gói đã đăng ký - Miễn phí)'
+                                    }
                                 </span>
                             </label>
                         </div>
@@ -711,6 +822,20 @@ const VaccineDetail = () => {
                     <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{minWidth: '500px'}}>
                         <h3 style={{marginBottom: '20px', color: '#1976d2'}}>📦 Đăng Ký Gói Tiêm</h3>
                         
+                        {packageInfo && packageInfo.HieuLuc && (
+                            <div style={{
+                                padding: '12px',
+                                background: '#fff3e0',
+                                borderRadius: '8px',
+                                border: '2px solid #ff9800',
+                                marginBottom: '15px',
+                                fontSize: '14px'
+                            }}>
+                                ⚠️ <strong>Lưu ý:</strong> Bạn đã có gói <strong style={{color: '#1976d2'}}>{packageInfo.TenVaccine}</strong>. 
+                                Chỉ có thể đăng ký gói cho <strong>vaccine khác</strong>.
+                            </div>
+                        )}
+                        
                         <div style={{marginBottom: '20px'}}>
                             <label style={{display: 'block', fontWeight: '600', marginBottom: '8px'}}>
                                 Chọn vaccine: <span style={{color: 'red'}}>*</span>
@@ -722,11 +847,13 @@ const VaccineDetail = () => {
                                 style={{width: '100%', padding: '10px'}}
                             >
                                 <option value="">-- Chọn vaccine --</option>
-                                {availableVaccines.map(v => (
-                                    <option key={v.MaMatHang} value={v.MaMatHang}>
-                                        {v.TenMatHang} - {v.DonGia?.toLocaleString()} đ
-                                    </option>
-                                ))}
+                                {availableVaccines
+                                    .filter(v => !packageInfo || v.MaMatHang !== packageInfo.MaVaccine)
+                                    .map(v => (
+                                        <option key={v.MaMatHang} value={v.MaMatHang}>
+                                            {v.TenMatHang} - {v.DonGia?.toLocaleString()} đ
+                                        </option>
+                                    ))}
                             </select>
                         </div>
 
