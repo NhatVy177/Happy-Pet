@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import dayjs from 'dayjs';
@@ -58,22 +58,16 @@ const ManagerDashboard = () => {
     const token = localStorage.getItem('token');
     const maCN = localStorage.getItem('maCN');
 
-    useEffect(() => {
-        loadBranches();
-        loadEmployees();
-        loadProducts();
-    }, []);
-
-    const loadBranches = async () => {
+    const loadBranches = useCallback(async () => {
         try {
             const res = await axios.get('https://happy-pet-fomc.onrender.com/api/branches');
             setBranches(res.data);
         } catch (err) {
             console.error(err);
         }
-    };
+    }, []);
 
-    const loadEmployees = async () => {
+    const loadEmployees = useCallback(async () => {
         try {
             const res = await axios.get('https://happy-pet-fomc.onrender.com/api/manager/employees', {
                 headers: { Authorization: `Bearer ${token}` }
@@ -82,9 +76,9 @@ const ManagerDashboard = () => {
         } catch (err) {
             console.error(err);
         }
-    };
+    }, [token]);
 
-    const loadProducts = async () => {
+    const loadProducts = useCallback(async () => {
         try {
             const res = await axios.get('https://happy-pet-fomc.onrender.com/api/manager/products', {
                 headers: { Authorization: `Bearer ${token}` }
@@ -93,7 +87,13 @@ const ManagerDashboard = () => {
         } catch (err) {
             console.error(err);
         }
-    };
+    }, [token]);
+
+    useEffect(() => {
+        loadBranches();
+        loadEmployees();
+        loadProducts();
+    }, [loadBranches, loadEmployees, loadProducts]);
 
     // ================ THỐNG KÊ ================
     const loadProductRevenue = async () => {

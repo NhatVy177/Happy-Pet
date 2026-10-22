@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './Login.css'; // Xài chung CSS cho đẹp
@@ -8,7 +8,7 @@ const CompleteProfile = () => {
     const navigate = useNavigate();
     
     // Lấy dữ liệu Google truyền qua
-    const googleData = location.state || {};
+    const googleData = useMemo(() => location.state || {}, [location.state]);
 
     const [formData, setFormData] = useState({
         Email: googleData.email || '',

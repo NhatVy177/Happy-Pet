@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import axios from 'axios';
 import './BranchManagerDashboard.css';
 
@@ -7,7 +7,6 @@ const BranchManagerDashboard = () => {
     const [revenue, setRevenue] = useState(null);
     const [employees, setEmployees] = useState([]);
     const [inventory, setInventory] = useState([]);
-    const [stats, setStats] = useState({});
     
     // Stats tab data
     const [productRevenue, setProductRevenue] = useState([]);
@@ -31,32 +30,36 @@ const BranchManagerDashboard = () => {
     const [importQuantity, setImportQuantity] = useState(1);
     
     const token = localStorage.getItem('token');
-    const config = { headers: { Authorization: `Bearer ${token}` } };
+    const config = useMemo(() => ({ headers: { Authorization: `Bearer ${token}` } }), [token]);
+    const initialRevenueLoaded = useRef(false);
+    const previousTab = useRef(null);
     
     // Load doanh thu
-    const loadRevenue = () => {
+    const loadRevenue = useCallback(() => {
         axios.get(`https://happy-pet-fomc.onrender.com/api/branch-manager/revenue?loaiThongKe=THANG&nam=${revenueYear}&thang=${revenueMonth}`, config)
             .then(res => setRevenue(res.data))
             .catch(err => console.error(err));
-    };
+    }, [revenueYear, revenueMonth, config]);
     
     useEffect(() => {
+        if (initialRevenueLoaded.current) return;
+        initialRevenueLoaded.current = true;
         loadRevenue();
-    }, []);
+    }, [loadRevenue]);
     
     // Load nhân viên
-    const loadEmployees = () => {
+    const loadEmployees = useCallback(() => {
         axios.get('https://happy-pet-fomc.onrender.com/api/branch-manager/employees', config)
             .then(res => setEmployees(res.data))
             .catch(err => console.error(err));
-    };
+    }, [config]);
     
     // Load tồn kho cảnh báo
-    const loadInventory = () => {
+    const loadInventory = useCallback(() => {
         axios.get(`https://happy-pet-fomc.onrender.com/api/branch-manager/inventory/alert?nguongCanhBao=${nguongCanhBao}`, config)
             .then(res => setInventory(res.data))
             .catch(err => console.error(err));
-    };
+    }, [nguongCanhBao, config]);
     
     // Xử lý nhập hàng
     const handleImportStock = async () => {
@@ -86,7 +89,7 @@ const BranchManagerDashboard = () => {
     };
     
     // Load thống kê sản phẩm
-    const loadProductRevenue = () => {
+    const loadProductRevenue = useCallback(() => {
         const params = new URLSearchParams();
         if (dateFrom) params.append('tuNgay', dateFrom);
         if (dateTo) params.append('denNgay', dateTo);
@@ -97,39 +100,41 @@ const BranchManagerDashboard = () => {
                 setProductRevenue(res.data);
             })
             .catch(err => console.error(err));
-    };
+    }, [dateFrom, dateTo, config]);
     
     // Load nhân viên xuất sắc
-    const loadTopEmployees = () => {
+    const loadTopEmployees = useCallback(() => {
         axios.get(`https://happy-pet-fomc.onrender.com/api/branch-manager/employees/top-rated?diemSan=${diemSan}`, config)
             .then(res => {
                 console.log('Top employees data:', res.data);
                 setTopEmployees(res.data);
             })
             .catch(err => console.error(err));
-    };
+    }, [diemSan, config]);
     
     // Load dịch vụ doanh thu cao nhất
-    const loadTopService = () => {
+    const loadTopService = useCallback(() => {
         axios.get('https://happy-pet-fomc.onrender.com/api/branch-manager/service/top-revenue', config)
             .then(res => {
                 console.log('Top service data:', res.data);
                 setTopService(res.data);
             })
             .catch(err => console.error(err));
-    };
+    }, [config]);
     
     // Load thống kê hội viên
-    const loadMemberStats = () => {
+    const loadMemberStats = useCallback(() => {
         axios.get(`https://happy-pet-fomc.onrender.com/api/branch-manager/members/stats?nam=${year}`, config)
             .then(res => {
                 console.log('Member stats data:', res.data);
                 setMemberStats(res.data);
             })
             .catch(err => console.error(err));
-    };
+    }, [year, config]);
     
     useEffect(() => {
+        if (previousTab.current === activeTab) return;
+        previousTab.current = activeTab;
         if (activeTab === 'employees') loadEmployees();
         if (activeTab === 'inventory') loadInventory();
         if (activeTab === 'stats') {
@@ -138,7 +143,7 @@ const BranchManagerDashboard = () => {
             loadTopService();
             loadMemberStats();
         }
-    }, [activeTab]);
+    }, [activeTab, loadEmployees, loadInventory, loadProductRevenue, loadTopEmployees, loadTopService, loadMemberStats]);
     
     return (
         <div className="branch-manager-container">

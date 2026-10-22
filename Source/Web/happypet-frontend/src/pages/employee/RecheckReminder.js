@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import dayjs from 'dayjs';
 import './EmployeeDashboard.css';
@@ -8,7 +8,7 @@ const RecheckReminder = () => {
     const [loading, setLoading] = useState(false);
     const [timeRange, setTimeRange] = useState('week'); // week, month, all
 
-    const getDateRange = () => {
+    const getDateRange = useCallback(() => {
         const today = dayjs();
         let start, end;
 
@@ -34,9 +34,9 @@ const RecheckReminder = () => {
             tuNgay: start.format('YYYY-MM-DD'),
             denNgay: end.format('YYYY-MM-DD')
         };
-    };
+    }, [timeRange]);
 
-    const fetchRecheckList = async () => {
+    const fetchRecheckList = useCallback(async () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
@@ -53,11 +53,11 @@ const RecheckReminder = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [getDateRange]);
 
     useEffect(() => {
         fetchRecheckList();
-    }, [timeRange]);
+    }, [fetchRecheckList]);
 
     const getUrgencyBadge = (daysLeft) => {
         if (daysLeft < 0) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import dayjs from 'dayjs';
@@ -34,7 +34,7 @@ const OrderManagement = () => {
     console.log('📌 STATE HIỆN TẠI - timeTab:', timeTab, 'statusTab:', statusTab, 'orders.length:', orders.length); 
 
     // --- LOGIC GIỮ NGUYÊN ---
-    const getDateRange = (tab) => {
+    const getDateRange = useCallback((tab) => {
         const today = dayjs();
         let start, end;
 
@@ -67,9 +67,9 @@ const OrderManagement = () => {
             tuNgay: start.format('YYYY-MM-DD'),
             denNgay: end.format('YYYY-MM-DD')
         };
-    };
+    }, []);
 
-    const fetchOrders = async () => {
+    const fetchOrders = useCallback(async () => {
         console.log('🔥 FETCH ORDERS BẮT ĐẦU - timeTab:', timeTab);
         setLoading(true);
         try {
@@ -106,12 +106,12 @@ const OrderManagement = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [timeTab, getDateRange]);
 
     useEffect(() => {
         fetchOrders();
         setStatusTab('all'); 
-    }, [timeTab]);
+    }, [fetchOrders]);
 
     const viewOrderDetail = async (order) => {
         setSelectedOrder(order);

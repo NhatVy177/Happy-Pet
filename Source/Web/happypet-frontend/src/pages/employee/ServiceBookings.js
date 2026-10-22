@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import dayjs from 'dayjs';
@@ -50,7 +50,6 @@ const ServiceBookings = () => {
         DiemMuonDung: 0,
         PhuongThucTT: 'Tiền mặt'
     });
-    const [invoiceResult, setInvoiceResult] = useState(null);
     
     // State cho form đăng ký khách mới
     const [newCustomerForm, setNewCustomerForm] = useState({
@@ -69,7 +68,7 @@ const ServiceBookings = () => {
     });
 
     // 1. Logic tính ngày
-    const getDateRange = (tab) => {
+    const getDateRange = useCallback((tab) => {
         const today = dayjs();
         let start, end;
 
@@ -104,10 +103,10 @@ const ServiceBookings = () => {
             tuNgay: start.format('YYYY-MM-DD'),
             denNgay: end.format('YYYY-MM-DD')
         };
-    };
+    }, []);
 
     // 2. Fetch dữ liệu
-    const fetchBookings = async () => {
+    const fetchBookings = useCallback(async () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
@@ -126,9 +125,9 @@ const ServiceBookings = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [timeTab, getDateRange]);
 
-    const fetchDoctors = async () => {
+    const fetchDoctors = useCallback(async () => {
         try {
             const token = localStorage.getItem('token');
             const res = await axios.get('https://happy-pet-fomc.onrender.com/api/employee/doctors-status', {
@@ -138,13 +137,13 @@ const ServiceBookings = () => {
         } catch (error) {
             console.error('Lỗi:', error);
         }
-    };
+    }, []);
 
     useEffect(() => {
         fetchBookings();
         fetchDoctors();
         setStatusTab('all'); // Reset filter khi đổi ngày
-    }, [timeTab]);
+    }, [fetchBookings, fetchDoctors]);
 
     // 3. Logic lọc Client-side
     const filteredBookings = useMemo(() => {
@@ -228,7 +227,6 @@ const ServiceBookings = () => {
             console.log(`✅ Điểm tích lũy của KH ${maKH}: ${diemHienCo}`);
             
             setInvoiceData({ DiemMuonDung: 0, PhuongThucTT: 'Tiền mặt', DiemHienCo: diemHienCo });
-            setInvoiceResult(null);
         } catch (error) {
             console.error('❌ Lỗi lấy điểm tích lũy:', error);
             setInvoiceData({ DiemMuonDung: 0, PhuongThucTT: 'Tiền mặt', DiemHienCo: 0 });
@@ -249,7 +247,6 @@ const ServiceBookings = () => {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
-            setInvoiceResult(response.data.invoice);
             
             Swal.fire({
                 icon: 'success',

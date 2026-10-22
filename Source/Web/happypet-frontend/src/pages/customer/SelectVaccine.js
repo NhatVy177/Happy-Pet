@@ -12,7 +12,7 @@
 //     const [vaccines, setVaccines] = useState([]);
 //     const [packages, setPackages] = useState([]);
 //     const [selectedItems, setSelectedItems] = useState([]); 
-    
+
 //     // State chọn vaccine để áp gói
 //     const [targetVaccineForPackage, setTargetVaccineForPackage] = useState('');
 
@@ -203,7 +203,7 @@
 // export default SelectVaccine;
 
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2'; // 🔥 1. Thêm import Swal
@@ -227,45 +227,9 @@ const SelectVaccine = () => {
     
     // 🔥 State gói đang tiêm
     const [ongoingPackage, setOngoingPackage] = useState(null);
-    const [isCheckingPackage, setIsCheckingPackage] = useState(true);
 
-    useEffect(() => {
-        if (!MaPhieu) {
-            alert("Không tìm thấy mã phiếu!");
-            navigate('/booking'); 
-            return;
-        }
-        fetchData();
-    }, [MaPhieu]);
-
-    const fetchData = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            const headers = { Authorization: `Bearer ${token}` };
-
-            // 1. Lấy dữ liệu vaccines và packages TRƯỚC
-            const resData = await axios.get('https://happy-pet-fomc.onrender.com/api/booking/vaccine-data', { headers });
-            setVaccines(resData.data.vaccines);
-            setPackages(resData.data.packages);
-            
-            if(resData.data.vaccines.length > 0) {
-                setTargetVaccineForPackage(resData.data.vaccines[0].MaVaccine);
-            }
-
-            // 2. Lấy giỏ hàng
-            fetchSelected(headers);
-            
-            // 3. Check gói đang tiêm (KHÔNG BLOCK, chạy riêng)
-            checkOngoingPackage(headers);
-            
-        } catch (error) { 
-            console.error('Lỗi load data:', error); 
-            setIsCheckingPackage(false);
-        }
-    };
-    
     // Hàm riêng check gói đang tiêm
-    const checkOngoingPackage = async (headers) => {
+    const checkOngoingPackage = useCallback(async (headers) => {
         try {
             // Lấy thông tin phiếu để biết MaTC
             const resPhieu = await axios.get(`https://happy-pet-fomc.onrender.com/api/booking/booking-info/${MaPhieu}`, { headers });
@@ -273,7 +237,6 @@ const SelectVaccine = () => {
             
             if (!MaTC) {
                 console.log('Phiếu chưa có MaTC');
-                setIsCheckingPackage(false);
                 return;
             }
             
@@ -303,17 +266,43 @@ const SelectVaccine = () => {
             }
         } catch (err) {
             console.log('Không có gói đang tiêm hoặc lỗi:', err.message);
-        } finally {
-            setIsCheckingPackage(false);
         }
-    };
+    }, [MaPhieu]);
 
-    const fetchSelected = async (headers) => {
+    const fetchSelected = useCallback(async (headers) => {
         try {
             const resSelected = await axios.get(`https://happy-pet-fomc.onrender.com/api/booking/selected/${MaPhieu}`, { headers });
             setSelectedItems(resSelected.data);
         } catch (error) { console.error(error); }
-    };
+    }, [MaPhieu]);
+
+    useEffect(() => {
+        if (!MaPhieu) {
+            alert("Không tìm thấy mã phiếu!");
+            navigate('/booking');
+            return;
+        }
+
+        const fetchData = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                const headers = { Authorization: `Bearer ${token}` };
+                const resData = await axios.get('https://happy-pet-fomc.onrender.com/api/booking/vaccine-data', { headers });
+                setVaccines(resData.data.vaccines);
+                setPackages(resData.data.packages);
+
+                if (resData.data.vaccines.length > 0) {
+                    setTargetVaccineForPackage(resData.data.vaccines[0].MaVaccine);
+                }
+
+                fetchSelected(headers);
+                checkOngoingPackage(headers);
+            } catch (error) {
+                console.error('Lỗi load data:', error);
+            }
+        };
+        fetchData();
+    }, [MaPhieu, navigate, fetchSelected, checkOngoingPackage]);
 
     const handleAction = async (url, body) => {
         try {

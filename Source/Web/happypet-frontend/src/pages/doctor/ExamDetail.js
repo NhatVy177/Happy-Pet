@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -9,7 +9,6 @@ const ExamDetail = () => {
     const navigate = useNavigate();
     
     const [patientInfo, setPatientInfo] = useState(null);
-    const [medicines, setMedicines] = useState([]);
     const [availableMedicines, setAvailableMedicines] = useState([]);
     const [prescription, setPrescription] = useState([]);
     
@@ -24,13 +23,7 @@ const ExamDetail = () => {
     const [showHistory, setShowHistory] = useState(false);
     const [medicalHistory, setMedicalHistory] = useState([]);
 
-    useEffect(() => {
-        fetchPatientInfo();
-        fetchAvailableMedicines();
-        fetchPrescription();
-    }, [maPhieu]);
-
-    const fetchPatientInfo = async () => {
+    const fetchPatientInfo = useCallback(async () => {
         try {
             const token = localStorage.getItem('token');
             const res = await axios.get(`https://happy-pet-fomc.onrender.com/api/doctor/patient-info/${maPhieu}`, {
@@ -42,9 +35,9 @@ const ExamDetail = () => {
             console.error('❌ Error loading patient info:', err);
             Swal.fire('Lỗi', 'Không thể tải thông tin bệnh nhân!', 'error');
         }
-    };
+    }, [maPhieu]);
 
-    const fetchAvailableMedicines = async () => {
+    const fetchAvailableMedicines = useCallback(async () => {
         try {
             const token = localStorage.getItem('token');
             const res = await axios.get('https://happy-pet-fomc.onrender.com/api/doctor/medicines', {
@@ -55,9 +48,9 @@ const ExamDetail = () => {
         } catch (err) {
             console.error('❌ Error loading medicines:', err);
         }
-    };
+    }, []);
 
-    const fetchPrescription = async () => {
+    const fetchPrescription = useCallback(async () => {
         try {
             const token = localStorage.getItem('token');
             const res = await axios.get(`https://happy-pet-fomc.onrender.com/api/doctor/prescription/${maPhieu}`, {
@@ -68,7 +61,13 @@ const ExamDetail = () => {
         } catch (err) {
             console.error('❌ Error loading prescription:', err);
         }
-    };
+    }, [maPhieu]);
+
+    useEffect(() => {
+        fetchPatientInfo();
+        fetchAvailableMedicines();
+        fetchPrescription();
+    }, [fetchPatientInfo, fetchAvailableMedicines, fetchPrescription]);
 
     const fetchMedicalHistory = async () => {
         try {

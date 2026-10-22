@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -37,11 +37,7 @@ const VaccineDetail = () => {
     // 🔥 State cho check trạng thái hoàn tất
     const [isCompleted, setIsCompleted] = useState(false);
 
-    useEffect(() => {
-        fetchData();
-    }, [maPhieu]);
-
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
@@ -106,7 +102,11 @@ const VaccineDetail = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [maPhieu]);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
 
     // 🔥 Xác nhận sức khỏe (chỉ UI, không lưu DB)
     const handleHealthCheck = () => {

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { orderService } from '../../services/orderService'; 
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -16,7 +16,7 @@ const MyBookings = () => {
     const [reviewModal, setReviewModal] = useState(null);
     const navigate = useNavigate();
 
-    const fetchBookings = async () => {
+    const fetchBookings = useCallback(async () => {
         try {
             const token = localStorage.getItem('token');
             if (!token) { navigate('/login'); return; }
@@ -37,9 +37,9 @@ const MyBookings = () => {
             setBookings(serviceList);
         } catch (error) { console.error(error); } 
         finally { setLoading(false); }
-    };
+    }, [navigate]);
 
-    useEffect(() => { fetchBookings(); }, []);
+    useEffect(() => { fetchBookings(); }, [fetchBookings]);
 
     const handleCancel = (maPhieu) => {
         Swal.fire({

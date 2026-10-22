@@ -1,9 +1,15 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2'; 
 import './Booking.css'; 
+
+const getSafeTime = (val) => {
+    if (!val) return null;
+    if (typeof val === 'object') return val.toISOString().split('T')[1].substring(0, 5);
+    return val.toString().substring(0, 5);
+};
 
 const Booking = () => {
     const navigate = useNavigate();
@@ -25,40 +31,7 @@ const Booking = () => {
 
     const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-        fetchData();
-    }, []);
-
-    const fetchData = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            const [resBranches, resPets] = await Promise.all([
-                axios.get('https://happy-pet-fomc.onrender.com/api/booking/branches'),
-                axios.get('https://happy-pet-fomc.onrender.com/api/pets/my-pets', { headers: { Authorization: `Bearer ${token}` } })
-            ]);
-
-            setBranches(resBranches.data);
-            setPets(resPets.data);
-            
-            if (resBranches.data.length > 0) {
-                const first = resBranches.data[0];
-                handleBranchSelect(first); 
-            }
-            if (resPets.data.length > 0) {
-                setFormData(prev => ({ ...prev, MaTC: resPets.data[0].MaTC }));
-            }
-        } catch (error) {
-            console.error("Lỗi:", error);
-        }
-    };
-
-    const getSafeTime = (val) => {
-        if (!val) return null;
-        if (typeof val === 'object') return val.toISOString().split('T')[1].substring(0, 5);
-        return val.toString().substring(0, 5);
-    };
-
-    const generateTimeSlots = (startStr, endStr) => {
+    const generateTimeSlots = useCallback((startStr, endStr) => {
         if (!startStr || !endStr) return;
         const parseTime = (str) => {
             const [h, m] = str.split(':').map(Number);
@@ -78,10 +51,10 @@ const Booking = () => {
             slots.push(`${h}:${m}`);
         }
         setTimeSlots(slots);
-    };
+    }, []);
 
     // --- HÀM XỬ LÝ CHỌN CHI NHÁNH (LOGIC MỚI CỰC CHUẨN) ---
-    const handleBranchSelect = (branch) => {
+    const handleBranchSelect = useCallback((branch) => {
         setSelectedBranchInfo(branch);
         
         // 1. Tạo khung giờ
@@ -114,7 +87,32 @@ const Booking = () => {
             GioHen: '', 
             LoaiPhieu: defaultService // Tự động nhảy sang dịch vụ hợp lệ
         }));
-    };
+    }, [generateTimeSlots]);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                const [resBranches, resPets] = await Promise.all([
+                    axios.get('https://happy-pet-fomc.onrender.com/api/booking/branches'),
+                    axios.get('https://happy-pet-fomc.onrender.com/api/pets/my-pets', { headers: { Authorization: `Bearer ${token}` } })
+                ]);
+
+                setBranches(resBranches.data);
+                setPets(resPets.data);
+
+                if (resBranches.data.length > 0) {
+                    handleBranchSelect(resBranches.data[0]);
+                }
+                if (resPets.data.length > 0) {
+                    setFormData(prev => ({ ...prev, MaTC: resPets.data[0].MaTC }));
+                }
+            } catch (error) {
+                console.error("Lỗi:", error);
+            }
+        };
+        fetchData();
+    }, [handleBranchSelect]);
 
     const handleBranchChange = (e) => {
         const maCN = e.target.value;

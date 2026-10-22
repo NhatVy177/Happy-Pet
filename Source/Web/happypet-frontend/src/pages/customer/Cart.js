@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { orderService } from '../../services/orderService';
 import Swal from 'sweetalert2';
 import './Cart.css';
@@ -7,13 +7,6 @@ import { useNavigate } from 'react-router-dom';
 const Cart = () => {
     // --- 1. KHỞI TẠO STATE ---
     
-    const initialOrderCode = (() => {
-        const v = localStorage.getItem('currentOrderCode');
-        if (!v || v === 'undefined' || v === 'null') return null;
-        return String(v).replace(/\+/g, '').trim(); 
-    })();
-
-    const [maPhieu, setMaPhieu] = useState(initialOrderCode);
     const [cartInfo, setCartInfo] = useState({ TongThanhTien: 0, PhiGiaoHang: 0, TongThanhTienSC: 0, TongDiemTichLuy: 0 });
     const [cartDetails, setCartDetails] = useState([]);
     const [diemDung, setDiemDung] = useState(0);
@@ -73,7 +66,7 @@ const Cart = () => {
     };
 
     // --- 3. LOAD GIỎ HÀNG ---
-    const loadCart = async () => {
+    const loadCart = useCallback(async () => {
         setLoading(true);
         try {
             const currentCode = localStorage.getItem('currentOrderCode')?.replace(/\+/g, '').trim();
@@ -114,7 +107,7 @@ const Cart = () => {
                 } catch (err) { console.error("Lỗi profile:", err); }
             }
 
-            if (currentAddress && !diaChi) setDiaChi(currentAddress);
+            if (currentAddress) setDiaChi(previous => previous || currentAddress);
 
             setCartDetails(cartItems);
             const total = cartItems.reduce((s, it) => s + it.ThanhTien, 0);
@@ -126,14 +119,12 @@ const Cart = () => {
                 TongDiemTichLuy: currentPoints
             });
             
-            if (ngayNhan) setPhiShip(calculateShippingFee(ngayNhan));
-            
         } catch (e) {
             console.error("Lỗi loadCart:", e);
         } finally {
             setTimeout(() => setLoading(false), 300);
         }
-    };
+    }, []);
 
     const handleRemoveItem = async (maMH, skipConfirm = false) => {
         if (!skipConfirm) {
@@ -170,7 +161,7 @@ const Cart = () => {
         } catch (e) { Swal.fire('Lỗi', 'Không cập nhật được', 'error'); }
     };
 
-    useEffect(() => { loadCart(); }, []);
+    useEffect(() => { loadCart(); }, [loadCart]);
 
     const formatMoney = (v) => Number(v || 0).toLocaleString('vi-VN') + 'đ';
     const finalTotal = (cartInfo.TongThanhTien || 0) + phiShip - (diemDung * 1000);

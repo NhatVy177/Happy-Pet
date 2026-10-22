@@ -1112,7 +1112,7 @@ const Products = () => {
         localStorage.setItem('shipCity', city);
       }
     }
-  }, [branches, selectedBranch]);
+  }, [branches, selectedBranch, selectedCity]);
 
   const selectedBranchObj = selectedBranch ? branches.find(b => getBranchId(b) === selectedBranch) : null;
 
